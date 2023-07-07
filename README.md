@@ -1,2 +1,2 @@
-# GraphPrioritizer
-Workflow to get priorization from graph data
+# BackupGene
+Workflow to get possible backup genes prioritized in an ordered list.
