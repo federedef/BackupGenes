@@ -1,0 +1,68 @@
+rank_genes){
+	# Input: seed_gens + kernel.
+	# Output: rank genes for every gen.
+	source ~soft_bio_267/initializes/init_python
+	. ~soft_bio_267/initializes/init_ruby
+	. ~soft_bio_267/initializes/init_R
+	echo -e "$param1_$kernel\t$param1\t$kernel" > tracker
+	ranking_path=`pwd`
+	## Defining seed genes
+    awk 'BEGIN{OFS="\t";}{print $1,$1}' $control_pos > seed_by_group
+	## Obtaining genes of interest
+	cat $control_pos $control_neg | aggregate_column_data.py -i - -x 1 -a 2 > filter
+	## Obtaining tags for group-case
+	desaggregate_column_data.py -i $control_pos -x 2 |& awk '{OFS="\t"}{print $1,$2,1}' > tags
+	desaggregate_column_data.py -i $control_neg -x 2 |& awk '{OFS="\t"}{print $1,$2,0}' >> tags
+	?
+	ranker.py -k $folder_kernel_path/$input_name.npy -n $folder_kernel_path/$input_name.lst -s seed_by_group -f filter
+	# Add tags to ranked_genes_all_candidates.
+	add_tags2ranks.py -i ranked_genes_all_candidates -g 5 -c 0 -t tags -o tagged_ranks.txt
+	number_of_genes=`wc -l tagged_ranks.txt | cut -f1 -d " "`
+
+	
+	# Obtaining Metrics And statistical summary
+    if [ $number_of_genes -ge 1 ] ; then 
+    	# Obtaining measures for graphs
+    	number_of_types_of_labels=`cut -f7 tagged_ranks.txt | sort | uniq | wc -l`
+
+    	if [ $number_of_types_of_labels -ge 2 ] ; then
+    		ROCanalysis.R -i tagged_ranks.txt -s 3 -t 7 -S backupgenes -o "preobserved_all_genes" -m "ROC" -M "acc:tpr:fpr:prec:rec" -e -R
+			sed '1d' preobserved_all_genes_measures |  cut -f 2- > all_genes_measures
+			if [ -s all_genes_measures ] ; then
+				awk -v tracker="`cat tracker`" 'BEGIN{FS="\t";OFS="\t"}{print tracker,$0}' all_genes_measures > $output_name_measures
+			else 
+			  	exit 0
+			fi
+    	fi
+
+    	if [ $number_of_types_of_labels -ge 2 ] ; then
+    		# Obtaining summary of performance
+			ROCanalysis.R -i tagged_ranks.txt -s 3 -t 7 -b 1000 -S backupgenes -o "preobserved_all_genes" -z -m "ROC" -M "acc:tpr:fpr:auc:f" -R
+			sed '1d' preobserved_all_genes_summary | cut -f 3,4 > all_genes_summary
+			if [ -s all_genes_summary ] ; then
+				awk -v tracker="`cat tracker`" 'BEGIN{FS="\t";OFS="\t"}{gsub(/ /,"_",$0); print tracker,$1,$2}' all_genes_summary > $output_name_summary
+			else 
+			  	exit 0
+			fi
+		fi
+		# Extracting positive values
+		awk '{if($7==1 && $3!=1) print $0}' tagged_ranks.txt | cut -f 1-6 > positive_genes
+		number_of_positive_genes=`wc -l positive_genes | cut -f1 -d " "`
+
+	    if [ $number_of_positive_genes -ge 1 ] ; then 
+			rank_metrics.py -r positive_genes -e "ranks" > prerank_list
+			if [ -a prerank_list ] ; then
+				awk -v tracker="`cat tracker`" 'BEGIN{FS="\t";OFS="\t"}{print tracker,$0}' prerank_list > $output_name_cdf
+			else 
+		  		exit 0
+			fi
+		fi
+
+		echo -e "positive_coverage\t${number_of_positive_genes}" > pos_cov
+		awk -v tracker="`cat tracker`" 'BEGIN{FS="\t";OFS="\t"}{gsub(/ /,"_",$0); print tracker,$1,$2}' pos_cov > $output_name_pos_cov
+		
+	else 
+		exit 0
+	fi
+
+}
