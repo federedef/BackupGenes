@@ -16,8 +16,8 @@ export output_folder_GraphPrioritizer=$SCRATCH/executions/GraphPrioritizer
 report_folder=$output_folder/report
 
 # Custom variables.
-annotations="disease phenotype molecular_function biological_process cellular_component string_ppi hippie_ppi pathway gene_TF gene_hgncGroup genetic_interaction_effect_bicor gene_PS"
-kernels="ka rf ct el node2vec"
+annotations="disease phenotype molecular_function biological_process cellular_component string_ppi hippie_ppi pathway gene_TF gene_hgncGroup DepMap_effect_pearson DepMap_effect_spearman gene_PS"
+kernels="ka rf ct el node2vec raw_sim" 
 integration_types="mean integration_mean_by_presence"
 control_pos=$input_path'/control_pos'
 control_neg=$input_path'/control_neg'
@@ -44,16 +44,17 @@ elif [ "$exec_mode" == "control_type" ] ; then
 ##################################################################
 # OPTIONAL STAGE : SEE IF THE RELATION BACKUP-GENSEED IS SYMMETRIC
 ##################################################################
+  . ~soft_bio_267/initializes/init_python
   filter_feature=$3 # Paralogs, Not_Paralogs, ".*"
 
   echo "$filter_feature"
 
   if [ $add_opt == "reverse" ] ; then 
-      awk '{OFS="\t"}{print $2,$1,$3}' $control_genes_folder/backupgens/backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data.py -i - -x 1 -a 2 > ./control_pos
-      awk '{OFS="\t"}{print $2,$1,$3}' $control_genes_folder/backupgens/non_backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data.py -i - -x 1 -a 2 > ./control_neg   
+      awk '{OFS="\t"}{print $2,$1,$3}' $control_genes_folder/backupgens/backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data -i - -x 1 -a 2 > ./control_pos
+      awk '{OFS="\t"}{print $2,$1,$3}' $control_genes_folder/backupgens/non_backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data -i - -x 1 -a 2 > ./control_neg   
   elif [ $add_opt == "right" ] ; then 
-      awk '{OFS="\t"}{print $1,$2,$3}' $control_genes_folder/backupgens/backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data.py -i - -x 1 -a 2 > ./control_pos
-      awk '{OFS="\t"}{print $1,$2,$3}' $control_genes_folder/backupgens/non_backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data.py -i - -x 1 -a 2 > ./control_neg
+      awk '{OFS="\t"}{print $1,$2,$3}' $control_genes_folder/backupgens/backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data -i - -x 1 -a 2 > ./control_pos
+      awk '{OFS="\t"}{print $1,$2,$3}' $control_genes_folder/backupgens/non_backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data -i - -x 1 -a 2 > ./control_neg
   fi
 
 
@@ -192,7 +193,7 @@ elif [ "$exec_mode" == "report" ] ; then
   for metric in non_integrated_rank_summary integrated_rank_summary non_integrated_rank_pos_cov integrated_rank_pos_cov non_integrated_rank_positive_stats integrated_rank_positive_stats ; do
     if [ -s $output_folder/$metric ] ; then
       echo "$output_folder/$metric"
-      create_metric_table.py $output_folder/$metric ${references[$metric]} $report_folder/ranking_report/parsed_${metric} 
+      create_metric_table $output_folder/$metric ${references[$metric]} $report_folder/ranking_report/parsed_${metric} 
     fi
   done
 
@@ -226,7 +227,7 @@ elif [ "$exec_mode" == "report" ] ; then
     get_graph.R -d $report_folder/ranking_report/integrated_rank_measures -x "fpr" -y "tpr" -g "kernel" -w "integration" -O "integrated_ROC" -o "$report_folder/img"
   fi
 
-  report_html.py -t ./report/templates/ranking_report.txt -d `ls $report_folder/ranking_report/* | tr -s [:space:] "," | sed 's/,*$//g'` -o "report_algQuality$html_name"
+  report_html -t ./report/templates/ranking_report.txt -d `ls $report_folder/ranking_report/* | tr -s [:space:] "," | sed 's/,*$//g'` -o "report_algQuality$html_name"
 
 
 #########################################################

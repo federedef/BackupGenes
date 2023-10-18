@@ -9,10 +9,10 @@ rank_genes){
 	## Defining seed genes
     awk 'BEGIN{OFS="\t";}{print $1,$1}' $control_pos > seed_by_group
 	## Obtaining genes of interest
-	cat $control_pos $control_neg | aggregate_column_data.py -i - -x 1 -a 2 > filter
+	cat $control_pos $control_neg | aggregate_column_data -i - -x 1 -a 2 > filter
 	## Obtaining tags for group-case
-	desaggregate_column_data.py -i $control_pos -x 2 |& awk '{OFS="\t"}{print $1,$2,1}' > tags
-	desaggregate_column_data.py -i $control_neg -x 2 |& awk '{OFS="\t"}{print $1,$2,0}' >> tags
+	desaggregate_column_data -i $control_pos -x 2 |& awk '{OFS="\t"}{print $1,$2,1}' > tags
+	desaggregate_column_data -i $control_neg -x 2 |& awk '{OFS="\t"}{print $1,$2,0}' >> tags
 	?
 	ranker.py -k $folder_kernel_path/$input_name.npy -n $folder_kernel_path/$input_name.lst -s seed_by_group -f filter
 	# Add tags to ranked_genes_all_candidates.
