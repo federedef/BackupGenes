@@ -14,7 +14,7 @@ rank_genes){
 	desaggregate_column_data -i $control_pos -x 2 |& awk '{OFS="\t"}{print $1,$2,1}' > tags
 	desaggregate_column_data -i $control_neg -x 2 |& awk '{OFS="\t"}{print $1,$2,0}' >> tags
 	?
-	ranker.py -k $folder_kernel_path/$input_name.npy -n $folder_kernel_path/$input_name.lst -s seed_by_group -f filter
+	ranker -k $folder_kernel_path/$input_name.npy -n $folder_kernel_path/$input_name.lst -s seed_by_group -f filter
 	# Add tags to ranked_genes_all_candidates.
 	add_tags2ranks.py -i ranked_genes_all_candidates -g 5 -c 0 -t tags -o tagged_ranks.txt
 	number_of_genes=`wc -l tagged_ranks.txt | cut -f1 -d " "`

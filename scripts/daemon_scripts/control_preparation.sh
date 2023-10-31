@@ -17,8 +17,8 @@ source ~soft_bio_267/initializes/init_python
   awk '{FS="\t"}{if ( $2 <= 0.05 && $3 <= 0.05 && $4 <= 0.05 && $5 <= 0.05 && $6 <= 0.05 && $7 <= 0.05 && $8 <= 0.05 && $9 <= 0.05 && $10 <= 0.05 && $11 <= 0.05 && $12 <= 0.05) print $1}' $control_genes_folder/backupgens/data/Digenic_Paralog | \
    tr -s ";" "\t" | tr -d "\"" | grep -v -e '^$' > $control_genes_folder/backupgens/data/filtered_Digenic_Paralog
 
-  standard_name_replacer.py -u -I ./translators/symbol_HGNC -i $control_genes_folder/backupgens/data/filtered_Big_Papi -c 1,2 > $control_genes_folder/backupgens/processed_data/Big_Papi
-  standard_name_replacer.py -u -I ./translators/symbol_HGNC -i $control_genes_folder/backupgens/data/filtered_Digenic_Paralog -c 1,2 > $control_genes_folder/backupgens/processed_data/Digenic_Paralog
+  standard_name_replacer -u -I ./translators/symbol_HGNC -i $control_genes_folder/backupgens/data/filtered_Big_Papi -c 1,2 > $control_genes_folder/backupgens/processed_data/Big_Papi
+  standard_name_replacer -u -I ./translators/symbol_HGNC -i $control_genes_folder/backupgens/data/filtered_Digenic_Paralog -c 1,2 > $control_genes_folder/backupgens/processed_data/Digenic_Paralog
   
   cat $control_genes_folder/backupgens/processed_data/* | sort | uniq -u  > $control_genes_folder/backupgens/backup_gens
 
@@ -30,7 +30,7 @@ source ~soft_bio_267/initializes/init_python
    tr -s ";" "\t" | tr -d "\"" >> $control_genes_folder/backupgens/data/filtered_Big_Papi_negative_control
   grep -v -e '^$' $control_genes_folder/backupgens/data/filtered_Big_Papi_negative_control > tmp
   mv tmp $control_genes_folder/backupgens/data/filtered_Big_Papi_negative_control
-  standard_name_replacer.py -u -I ./translators/symbol_HGNC -i $control_genes_folder/backupgens/data/filtered_Big_Papi_negative_control -c 1,2 | awk '{if (!( $1 == $2 )) print $0 }' > $control_genes_folder/backupgens/non_backup_gens
+  standard_name_replacer -u -I ./translators/symbol_HGNC -i $control_genes_folder/backupgens/data/filtered_Big_Papi_negative_control -c 1,2 | awk '{if (!( $1 == $2 )) print $0 }' > $control_genes_folder/backupgens/non_backup_gens
   
 
   echo "Obtaining Paralogs genes"
