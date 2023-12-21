@@ -16,9 +16,9 @@ export output_folder_GraphPrioritizer=$SCRATCH/executions/GraphPrioritizer
 report_folder=$output_folder/report
 
 # Custom variables.
-annotations="disease phenotype molecular_function biological_process cellular_component string_ppi hippie_ppi pathway gene_TF gene_hgncGroup DepMap_effect_pearson DepMap_effect_spearman gene_PS"
-kernels="ka rf ct el node2vec raw_sim" 
-integration_types="mean integration_mean_by_presence"
+annotations="string_ppi disease phenotype biological_process string_ppi_textmining string_ppi_coexpression gene_hgncGroup"
+kernels="ka rf ct el node2vec raw_sim"
+integration_types="mean integration_mean_by_presence median max geometric_mean"
 control_pos=$input_path'/control_pos'
 control_neg=$input_path'/control_neg'
 
@@ -111,7 +111,7 @@ elif [ "$exec_mode" == "integrated_ranking" ] ; then
     for kernel in $kernels ; do 
 
       ugot_path="$output_folder_GraphPrioritizer/integrations/ugot_path"
-      folder_kernel_path=`awk '{print $0,NR}' $ugot_path | sort -k 5 -r -u | grep "${integration_type}_$kernel" | awk '{print $4}'`
+      folder_kernel_path=`awk '{print $0,NR}' $ugot_path | sort -k 5 -r -u | grep -w "${integration_type}_$kernel" | awk '{print $4}'`
       echo ${folder_kernel_path}
       if [ ! -z ${folder_kernel_path} ] ; then # This kernel for this integration_type is done? 
 
@@ -143,6 +143,7 @@ elif [ "$exec_mode" == "report" ] ; then
   source ~soft_bio_267/initializes/init_python
   source ~soft_bio_267/initializes/init_R
   html_name=$2
+  check=$3
   
   # #################################
   # Setting up the report section #
@@ -216,19 +217,28 @@ elif [ "$exec_mode" == "report" ] ; then
      echo -e "integration_kernel\tintegration\tkernel\tcandidate\tscore\trank\tcummulative_frec\tgroup_seed"| \
      cat - $output_folder/integrated_rank_cdf > $report_folder/ranking_report/integrated_rank_cdf
   fi
+  
+  if [ -z "$check" ] ; then
+    echo "---------------------------------------"
+    echo " Now it is necessary some information of the process "
+    echo "data version?"
+    read version
+    echo "extra info?"
+    read extra_info
+    name_dir=`date +%d_%m_%Y`
+    mkdir ./report/HTMLs/$name_dir
+    # Create preprocess file
+    echo -e " Data version:\t$version\nExtra Info:\t$extra_info " > ./report/HTMLs/$name_dir/info_preprocess
+  else 
+    echo "Reports to check available"
+  fi
  ###################
   # Obtaining HTMLS #
+  report_html -t ./report/templates/ranking_report.mko -d `ls $report_folder/ranking_report/* | tr -s [:space:] "," | sed 's/,*$//g'` -o "report_algQuality$html_name"
 
-  if [ -s $output_folder/non_integrated_rank_measures ] ; then
-    get_graph.R -d $report_folder/ranking_report/non_integrated_rank_measures -x "fpr" -y "tpr" -g "kernel" -w "annot" -O "non_integrated_ROC" -o "$report_folder/img"
+  if [ -z "$check" ] ; then
+    mv ./report_algQuality$html_name.html ./report/HTMLs/$name_dir/
   fi
-
-  if [ -s $output_folder/integrated_rank_measures ] ; then
-    get_graph.R -d $report_folder/ranking_report/integrated_rank_measures -x "fpr" -y "tpr" -g "kernel" -w "integration" -O "integrated_ROC" -o "$report_folder/img"
-  fi
-
-  report_html -t ./report/templates/ranking_report.txt -d `ls $report_folder/ranking_report/* | tr -s [:space:] "," | sed 's/,*$//g'` -o "report_algQuality$html_name"
-
 
 #########################################################
 # STAGE TO CHECK AUTOFLOW IS RIGHT
