@@ -1,10 +1,47 @@
 <%
         import os.path
+        import warnings
+        import pandas as pd
+        import re
+
+        warnings.simplefilter(action='ignore', category=FutureWarning)
+
+        def parsed_string(data, blacklist = ["sim"]):
+                words = []
+                for word in data.split("_"):
+                        for blackword in blacklist:
+                                word = re.sub(blackword,"",word)
+                        word = word.capitalize()
+                        words.append(word)
+                parsed_data = " ".join(words)
+                return parsed_data
+
+        def parse_data(table, blacklist = ["sim"], column = "all"):
+                parsed_table = []
+                for i,row in enumerate(table):
+                        parsed_table.append(row)
+                        for j,data in enumerate(row):
+                                if type(data) == str and not data.startswith("HGNC:"):
+                                        parsed_table[i][j] = parsed_string(data, blacklist)
+                                else:
+                                        continue
+                return parsed_table
+                
         def order_columns(name, column):
                 tab_header = plotter.hash_vars[name].pop(0)
                 plotter.hash_vars[name].sort(key=lambda x: x[column])
                 plotter.hash_vars[name].insert(0, tab_header)
 
+        def parse_table(name, blacklist=["sim"], include_header = False):
+                if not include_header:
+                        tab_header = plotter.hash_vars[name].pop(0)
+                        plotter.hash_vars[name] = parse_data(plotter.hash_vars[name])
+                        plotter.hash_vars[name].insert(0, tab_header)
+                else:
+                        plotter.hash_vars[name] = parse_data(plotter.hash_vars[name])
+
+        for table in plotter.hash_vars.keys():
+                parse_table(table)
         if plotter.hash_vars.get('parsed_non_integrated_rank_summary') is not None:
                 order_columns('parsed_non_integrated_rank_summary',0)
 
@@ -40,12 +77,60 @@
                 if suptitle is not None:
                         g.fig.subplots_adjust(top=top)
                         g.fig.suptitle(suptitle,fontsize=20)
+
+        def get_medianrank_size(var_name, groupby = ['annot_kernel','annot','kernel'], value = 'absolute_ranking', tops = [5,10,20]):
+                df = pd.DataFrame(plotter.hash_vars[var_name][1:], columns = plotter.hash_vars[var_name][0])
+                df_final = df.groupby(groupby)[value].size().reset_index()
+                for top in tops:
+                        df_top = df.groupby(groupby)[value].apply(lambda x: sum(pd.to_numeric(x)<=top)).reset_index()
+                        df_top.rename(columns={value: f"Top {top}"}, inplace=True)
+                        df_final = pd.concat([df_final, df_top[[f"Top {top}"]]], axis=1)
+                print(df_final.columns)
+                #col_names = plotter.hash_vars[var_name][0]
+                #col_names.append("size")
+                return [df_final.columns.tolist()] + df_final.values.tolist()
+
+        plotter.hash_vars["non_integrated_tops"] = get_medianrank_size("non_integrated_rank_cdf", tops=[5,10,20,100])
+        plotter.hash_vars["integrated_tops"] = get_medianrank_size("integrated_rank_cdf", ["integration_kernel","integration","kernel"], tops = [5,10,20,100])
         
 %>
 <div style="width:90%; background-color:#FFFFFF; margin:50 auto; align-content: center;">
 
-    <h1 style="text-align:center; background-color:#ecf0f1, color: powderblue; "> Analysis of the algorithm: From rankings to backup genes.</h1>
+    <h1 style="text-align:center; background-color:#ecf0f1, color: powderblue; "> Analysis of the algorithm: From Rankings to Backup Genes.</h1>
 
+        <%
+                graph=f"""
+                ---
+                title: Backup Benchmarking Flux
+                config:
+                 theme: dark
+                 themeVariables:
+                  lineColor: "#717171"
+                
+                ---
+                graph LR
+                 SI[Manually curated from literature]
+                 SII[Double knock-out \\n screening]
+                 P[<span style="color:#023020">Positive</span>]
+                 N[<span style="color:#8B0000">Negative</span>]
+                 CDF[<span style="color:#000000">CDF</span>]
+                 ROC[<span style="color:#000000">ROC with Bootstrap \\n 1000 iterations</span>]
+                 subgraph C[Backup Control \\n Dataset]
+                  P
+                  N
+                 end
+                 SI-->C
+                 SII-->C
+                 P--> CDF
+                 P & N --> ROC
+                 style P fill:#84D677
+                 style N fill:#FF503E
+                 style CDF fill:#A0A0A0
+                 style ROC fill:#A0A0A0
+                """
+        %>
+        ${print(graph)}
+        ${plotter.mermaid_chart(graph)}
         <h2 style="text-align:center; background-color:#ecf0f1, color: powderblue;"> Ranking section </h2>
 
         <div style="overflow: hidden; display: flex; flex-direction: row; justify-content: center;">
@@ -56,7 +141,7 @@
                                  x_label = 'Number of control candidate genes present',
                                  height = '400px', width= '400px',
                                  var_attr = [1,2],
-                                 title = "Control Coverage by Layers before Integration",
+                                 title = "Control Coverage \n before Integration",
                                  config = {
                                         'showLegend' : True,
                                         'graphOrientation' : 'horizontal',
@@ -69,7 +154,7 @@
                         % if plotter.hash_vars.get('parsed_integrated_rank_pos_cov') is not None: 
                                 ${plotter.barplot(id= "parsed_integrated_rank_pos_cov", fields= [1,3] , header= True, responsive= False,
                                         height= '400px', width= '400px', x_label= 'Number of control candidate genes present' , var_attr= [1,2],
-                                        title = "Control Coverage by Layers after Integration",
+                                        title = "Control Coverage \n after Integration",
                                         config = {
                                                 'showLegend' : True,
                                                 'graphOrientation' : 'horizontal',
@@ -81,33 +166,50 @@
         </div>
 
         <div style="overflow: hidden; display: flex; flex-direction: row; justify-content: center;">
-                <div style="margin-right: 10px;">
-                                % if plotter.hash_vars.get('non_integrated_rank_cdf') is not None: 
-                                        ${plotter.boxplot(id= 'non_integrated_rank_cdf', header= True, row_names= False, default= False, fields= [5],  var_attr= [0,1,2], group = "kernel",
-                                           title= "Distribution of Non-Zero Ranks in Dataset by Kernels before Integration",
-                                                x_label= "Percentile/100",
-                                                config= {
-                                                        "graphOrientation": "vertical",
-                                                        "colorBy" : "kernel",
-                                                        "groupingFactors" :
-                                                        ["kernel"],
-                                                        "segregateSamplesBy": "annot"})}
-                                % endif
-                </div>
-                <div style="margin-left: 10px;">
-                                % if plotter.hash_vars.get('integrated_rank_cdf') is not None: 
-                                        ${plotter.boxplot(id= 'integrated_rank_cdf', header= True, row_names= False, default= False, fields = [5], var_attr= [0,1,2], group= "kernel", 
-                                                title= "Distribution of Non-Zero Ranks in Dataset by Kernels after Integration",
-                                                xlabel= "Percentile/100",
-                                                config= {
-                                                        "graphOrientation": "vertical",
-                                                        "colorBy" : "kernel",
-                                                        "xAxisTitle": "Percentile/100",
-                                                        "groupingFactors" :
-                                                        ["kernel"],
-                                                        "segregateSamplesBy": "integration"})}
-                                % endif
-                </div>
+                        % if plotter.hash_vars.get('non_integrated_rank_cdf') is not None: 
+                                ${plotter.boxplot(id= 'non_integrated_rank_cdf', header= True, row_names= False, default= False, fields= [5],  var_attr= [0,1,2], group = "kernel",
+                                   title= "Distribution of Non-Zero Ranks in Dataset \n before Integration",
+                                        x_label= "Percent",
+                                        config= {
+                                                "graphOrientation": "vertical",
+                                                "colorBy" : "kernel",
+                                                "groupingFactors" :
+                                                ["kernel"],
+                                                "segregateSamplesBy": "annot"})}
+                        % endif
+        </div>
+        <div style="overflow: hidden; display: flex; flex-direction: row; justify-content: center;">
+                        % if plotter.hash_vars.get('integrated_rank_cdf') is not None: 
+                                ${plotter.boxplot(id= 'integrated_rank_cdf', header= True, row_names= False, default= False, fields = [5], var_attr= [0,1,2], group= "kernel", 
+                                        title= "Distribution of Non-Zero Ranks in Dataset \n after Integration",
+                                        xlabel= "Percent",
+                                        config= {
+                                                "graphOrientation": "vertical",
+                                                "colorBy" : "kernel",
+                                                "xAxisTitle": "Percent",
+                                                "groupingFactors" :
+                                                ["kernel"],
+                                                "segregateSamplesBy": "integration"})}
+                        % endif
+        </div>
+
+        <div style="overflow: hidden; display: flex; flex-direction: row; justify-content: center;">
+                ${plotter.barplot(id="non_integrated_tops", header=True, fields=[0,4,5,6,7], var_attr=[1,2], 
+                        title= "Tops on each annotation by embedding",
+                        xlabel="Number of top-ranked Backups",
+                        config={
+                          'graphOrientation' : 'vertical',
+                          'segregateSamplesBy': "annot"
+                        })}
+        </div>
+        <div style="overflow: hidden; display: flex; flex-direction: row; justify-content: center;">
+                ${plotter.barplot(id="integrated_tops", header=True, fields=[0,4,5,6,7], var_attr=[1,2], 
+                        title= "Tops on each integration by embedding",
+                        xlabel="Number of top-ranked Backups",
+                        config={
+                          'graphOrientation' : 'vertical',
+                          'segregateSamplesBy': "integration"
+                        })}
         </div>
 
 
@@ -119,7 +221,7 @@
                                 ${plotter.line(id= "parsed_non_integrated_rank_summary", fields= [0, 7, 13, 8], header= True, row_names= True,
                                         responsive= False,
                                         height= '400px', width= '400px', x_label= 'AUC',
-                                        title= "Bootstrap Distribution of ROC-AUC for Kernels before Integration",
+                                        title= "Bootstrap Distribution ROC-AUCs by Embedding \n before Integration",
                                         config= {
                                                 'showLegend' : True,
                                                 'graphOrientation' : 'vertical',
@@ -131,7 +233,7 @@
                                 ${plotter.line(id= "parsed_integrated_rank_summary", fields=  [0, 7, 13, 8], header= True, row_names= True,
                                         responsive= False,
                                         height= '400px', width= '400px', x_label= 'AUC',
-                                        title= "Bootstrap Distribution of ROC-AUC for Kernels after Integration",
+                                        title= "Bootstrap Distribution ROC-AUCs by Embedding \n after Integration",
                                         config= {
                                                 'showLegend' : True,
                                                 'graphOrientation' : 'vertical',
@@ -146,7 +248,7 @@
                                         plotting_function= lambda data, plotter_list: plot_with_facet(plot_type="ecdf",data=data, 
                                                 plotter_list=plotter_list, x="rank", col="annot", 
                                                 hue="kernel", col_wrap=4, 
-                                                suptitle="CDF for Non-Zero Scores Generated by Embeddings before Integration",x_label="Rank", top=0.9))}
+                                                suptitle="CDF for Non-Zero Scores by Embeddings \n before Integration",x_label="Rank", top=0.9))}
                 % endif
         </div>
 
@@ -155,7 +257,7 @@
                          ${ plotter.static_plot_main( id="non_integrated_rank_measures", header=True, row_names=False, var_attr=[0,1,2,3], fields =[4,5,6],
                                         plotting_function= lambda data, plotter_list: plot_with_facet(plot_type="lineplot", data=data,
                                                 plotter_list=plotter_list, x='fpr', y='tpr', col='annot', 
-                                                hue='kernel', col_wrap=4, suptitle="ROC Curve Generated by Embeddings before Integration", 
+                                                hue='kernel', col_wrap=4, suptitle="ROC by Embeddings \n before Integration", 
                                                 top=0.9, x_label="FPR", y_label="TPR"))}
                 % endif
         </div>
@@ -165,7 +267,7 @@
                 % if plotter.hash_vars.get("integrated_rank_cdf") is not None: 
                         ${ plotter.static_plot_main( id="integrated_rank_cdf", header=True, row_names=False, var_attr=[0,1,2,3], fields =[4,5,6],
                                         plotting_function= lambda data, plotter_list: plot_with_facet(plot_type="ecdf",data=data, plotter_list=plotter_list, x="rank", 
-                                                col="integration", hue="kernel", col_wrap=2, suptitle="CDF for Non-Zero Scores Generated by Embeddings after Integration", top=0.8))}
+                                                col="integration", hue="kernel", col_wrap=2, suptitle="CDF for Non-Zero Scores by Embeddings \n after Integration", top=0.8))}
                 % endif
         </div>
 
@@ -174,7 +276,7 @@
                          ${ plotter.static_plot_main( id="integrated_rank_measures", header=True, row_names=False, var_attr=[0,1,2,3], fields =[4,5,6], 
                                         plotting_function= lambda data, plotter_list: plot_with_facet(plot_type="lineplot",data=data, 
                                                 plotter_list=plotter_list, x='fpr', y='tpr', col='integration', 
-                                                hue='kernel', col_wrap=2, suptitle="ROC Curve Generated by Embeddings after Integration", 
+                                                hue='kernel', col_wrap=2, suptitle="ROC by Embeddings \n after Integration", 
                                                 top=0.8, labels = 'kernel', x_label="FPR", y_label="TPR"))}
                 % endif
         </div>

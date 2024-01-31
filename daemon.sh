@@ -16,9 +16,14 @@ export output_folder_GraphPrioritizer=$SCRATCH/executions/GraphPrioritizer
 report_folder=$output_folder/report
 
 # Custom variables.
-annotations="string_ppi disease phenotype biological_process string_ppi_textmining string_ppi_coexpression gene_hgncGroup"
+annotations=" disease phenotype molecular_function biological_process cellular_component"
+annotations+=" string_ppi hippie_ppi"
+annotations+=" string_ppi_textmining string_ppi_database string_ppi_experimental string_ppi_coexpression string_ppi_cooccurence string_ppi_fusion string_ppi_neighborhood"
+annotations+=" DepMap_effect_pearson DepMap_effect_spearman kim_coess_gene"
+annotations+=" pathway gene_TF gene_hgncGroup gene_PS"
+#annotations="phenotype string_ppi"
 kernels="ka rf ct el node2vec raw_sim"
-integration_types="mean integration_mean_by_presence median max geometric_mean"
+integration_types="mean integration_mean_by_presence median max"
 control_pos=$input_path'/control_pos'
 control_neg=$input_path'/control_neg'
 
@@ -209,14 +214,18 @@ elif [ "$exec_mode" == "report" ] ; then
   fi
 
   if [ -s $output_folder/non_integrated_rank_cdf ] ; then
-     echo -e "annot_kernel\tannot\tkernel\tcandidate\tscore\trank\tcummulative_frec\tgroup_seed"| \
+     echo -e "annot_kernel\tannot\tkernel\tcandidate\tscore\trank\tcummulative_frec\tabsolute_ranking\tgroup_seed"| \
      cat - $output_folder/non_integrated_rank_cdf > $report_folder/ranking_report/non_integrated_rank_cdf
   fi
 
   if [ -s $output_folder/integrated_rank_cdf ] ; then
-     echo -e "integration_kernel\tintegration\tkernel\tcandidate\tscore\trank\tcummulative_frec\tgroup_seed"| \
+     echo -e "integration_kernel\tintegration\tkernel\tcandidate\tscore\trank\tcummulative_frec\tabsolute_ranking\tgroup_seed"| \
      cat - $output_folder/integrated_rank_cdf > $report_folder/ranking_report/integrated_rank_cdf
   fi
+
+  # Adding control pos
+  echo -e "Disfuntional Gene\t Backup Gene" > $report_folder/ranking_report/control_pos
+  desaggregate_column_data -x 2 -i control_pos >> $report_folder/ranking_report/control_pos
   
   if [ -z "$check" ] ; then
     echo "---------------------------------------"
