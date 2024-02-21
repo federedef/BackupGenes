@@ -15,7 +15,7 @@ def open_rank_file(rank_file):
 			candidate_gene = line[0]
 			score = line[1]
 			percentage_score = line[2]
-			absolute_rank = line[4]
+			absolute_rank = line[3]
 			known_ranks.append([candidate_gene, score, percentage_score, absolute_rank, group_name])
 	return known_ranks
 
