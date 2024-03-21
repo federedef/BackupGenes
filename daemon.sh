@@ -20,9 +20,10 @@ annotations=" disease phenotype molecular_function biological_process cellular_c
 annotations+=" string_ppi_combined hippie_ppi"
 annotations+=" string_ppi_textmining string_ppi_database string_ppi_experimental string_ppi_coexpression string_ppi_cooccurence string_ppi_fusion string_ppi_neighborhood"
 annotations+=" DepMap_effect_pearson DepMap_effect_spearman DepMap_Kim"
-annotations+=" pathway gene_TF gene_hgncGroup gene_PS"
+annotations+=" pathway gene_hgncGroup"
+#annotations="phenotype biological_process string_ppi_textmining string_ppi_coexpression gene_hgncGroup"
 #annotations="phenotype string_ppi"
-kernels="ka rf el node2vec raw_sim"
+kernels="rf el node2vec raw_sim"
 integration_types="mean integration_mean_by_presence median max"
 control_pos=$input_path'/control_pos'
 control_neg=$input_path'/control_neg'
@@ -40,7 +41,7 @@ if [ "$exec_mode" == "download_translators" ] ; then
   awk '{FS="\t";OFS="\t"}{print $19,$1}' ./translators/HGNC_symbol > ./translators/entrez_HGNC
   awk '{OFS="\t"}{print $2,$1}' ./translators/HGNC_symbol > ./translators/symbol_HGNC
  
-elif [ "$exec_mode" == "control_preparation" ] ; then 
+elif [ "$exec_mode" == "control_preparation" ] ; then  #TODO (5/3/2024): Quitar el HGNC:1925 que es un backup respecto a sí mismo e investigar que ha pasado.
 
   $daemon_scripts/control_preparation.sh
 
@@ -95,7 +96,7 @@ elif [ "$exec_mode" == "ranking" ] ; then
         \\$method=$method,
         \\$geneseeds=$input_path/geneseeds
         " | tr -d [:space:]`
-        AutoFlow -w $autoflow_scripts/ranking.af -V $autoflow_vars -o $output_folder/rankings/ranking_${kernel}_${annotation} -m 60gb -t 0-01:00:00 $3
+        AutoFlow -w $autoflow_scripts/ranking.af -V $autoflow_vars -o $output_folder/rankings/ranking_${kernel}_${annotation} -n cal -m 60gb -t 0-00:10:00 $3
       fi
       sleep 1
 
@@ -135,7 +136,7 @@ elif [ "$exec_mode" == "integrated_ranking" ] ; then
         \\$geneseeds=$input_path/geneseeds
         " | tr -d [:space:]`
         sleep 1
-        AutoFlow -w $autoflow_scripts/ranking.af -V $autoflow_vars -o $output_folder/integrated_rankings/ranking_${kernel}_${integration_type} -m 60gb -t 0-01:00:00 $3
+        AutoFlow -w $autoflow_scripts/ranking.af -V $autoflow_vars -o $output_folder/integrated_rankings/ranking_${kernel}_${integration_type}  -n cal -m 60gb -t 0-00:05:00 $3
       fi
 
     done
@@ -150,83 +151,96 @@ elif [ "$exec_mode" == "report" ] ; then
   source ~soft_bio_267/initializes/init_R
   html_name=$2
   check=$3
+  interested_layers="disease biological_process phenotype string_ppi_textmining string_ppi_coexpression pathway gene_hgncGroup string_ppi_combined"
+
+  # #################################
+  # Setting up the report section #
+  find $report_folder/ -mindepth 2 -delete
+  find $output_folder/ -maxdepth 1 -type f -delete
+
+  mkdir -p $report_folder/ranking_report
+  mkdir -p $report_folder/img
+
+  declare -A original_folders
+
+  original_folders[non_integrated_rank_summary]='rankings'
+  original_folders[non_integrated_rank_measures]='rankings'
+  original_folders[non_integrated_rank_cdf]='rankings'
+  original_folders[non_integrated_rank_pos_cov]='rankings'
+  original_folders[non_integrated_rank_positive_stats]='rankings'
+
+  original_folders[integrated_rank_summary]='integrated_rankings'
+  original_folders[integrated_rank_measures]='integrated_rankings'
+  original_folders[integrated_rank_cdf]='integrated_rankings'
+  original_folders[integrated_rank_pos_cov]='integrated_rankings'
+  original_folders[integrated_rank_positive_stats]='integrated_rankings'
   
-  # # #################################
-  # # Setting up the report section #
-  # find $report_folder/ -mindepth 2 -delete
-  # find $output_folder/ -maxdepth 1 -type f -delete
+  # Here the data is collected from executed folders.
+  for file in "${!original_folders[@]}" ; do
+    original_folder=${original_folders[$file]}
+    count=`find $output_folder/$original_folder -maxdepth 3 -mindepth 3 -name $file | wc -l`
+    if [ "$count" -gt "0" ] ; then
+      echo "$file"
+      cat $output_folder/$original_folder/*/*/$file > $output_folder/$file
+    fi
+  done 
 
-  # mkdir -p $report_folder/ranking_report
-  # mkdir -p $report_folder/img
+    # Here data is selected with just the selected layers of interest
+  for file in `find $output_folder/non_integrated_* -maxdepth 0 -type f -printf "%f\n"`; do
+    echo "Selecting $file"
+    echo `wc -l $output_folder/$file`
+    echo `cut -f 2 $output_folder/$file | uniq -c`
+    grep -e "`echo $interested_layers | tr -s ' ' '\n'`" $output_folder/$file > tmp
+    echo `wc -l tmp`
+    cut -f 2 tmp | uniq -c
+    mv tmp $output_folder/$file
+    echo `wc -l $output_folder/$file`
+  done
 
-  # declare -A original_folders
+  ##########################
+  # Processing all metrics #
+  declare -A references
 
-  # original_folders[non_integrated_rank_summary]='rankings'
-  # original_folders[non_integrated_rank_measures]='rankings'
-  # original_folders[non_integrated_rank_cdf]='rankings'
-  # original_folders[non_integrated_rank_pos_cov]='rankings'
-  # original_folders[non_integrated_rank_positive_stats]='rankings'
+  references[non_integrated_rank_summary]='Sample,Net,Embedding'
+  references[non_integrated_rank_pos_cov]='Sample,Net,Embedding'
+  references[non_integrated_rank_positive_stats]='Sample,Net,Embedding,group_seed'
 
-  # original_folders[integrated_rank_summary]='integrated_rankings'
-  # original_folders[integrated_rank_measures]='integrated_rankings'
-  # original_folders[integrated_rank_cdf]='integrated_rankings'
-  # original_folders[integrated_rank_pos_cov]='integrated_rankings'
-  # original_folders[integrated_rank_positive_stats]='integrated_rankings'
-  
-  # # Here the data is collected from executed folders.
-  # for file in "${!original_folders[@]}" ; do
-  #   original_folder=${original_folders[$file]}
-  #   count=`find $output_folder/$original_folder -maxdepth 3 -mindepth 3 -name $file | wc -l`
-  #   if [ "$count" -gt "0" ] ; then
-  #     echo "$file"
-  #     cat $output_folder/$original_folder/*/*/$file > $output_folder/$file
-  #   fi
-  # done 
+  references[integrated_rank_summary]='Sample,Integration,Embedding'
+  references[integrated_rank_pos_cov]='Sample,Integration,Embedding'
+  references[integrated_rank_positive_stats]='Sample,Integration,Embedding,group_seed'
 
-  # ##########################
-  # # Processing all metrics #
-  # declare -A references
+  references[annotation_grade_metrics]='Gene_seed'
 
-  # references[non_integrated_rank_summary]='Sample,Net,Embedding'
-  # references[non_integrated_rank_pos_cov]='Sample,Net,Embedding'
-  # references[non_integrated_rank_positive_stats]='Sample,Net,Embedding,group_seed'
+  for metric in non_integrated_rank_summary integrated_rank_summary non_integrated_rank_pos_cov integrated_rank_pos_cov non_integrated_rank_positive_stats integrated_rank_positive_stats ; do
+    if [ -s $output_folder/$metric ] ; then
+      echo "$output_folder/$metric"
+      create_metric_table $output_folder/$metric ${references[$metric]} $report_folder/ranking_report/parsed_${metric} 
+    fi
+  done
 
-  # references[integrated_rank_summary]='Sample,Integration,Embedding'
-  # references[integrated_rank_pos_cov]='Sample,Integration,Embedding'
-  # references[integrated_rank_positive_stats]='Sample,Integration,Embedding,group_seed'
+  if [ -s $output_folder/non_integrated_rank_measures ] ; then
+     echo -e "annot_Embedding\tannot\tEmbedding\trank\tacc\ttpr\tfpr\tprec\trec" | \
+     cat - $output_folder/non_integrated_rank_measures > $report_folder/ranking_report/non_integrated_rank_measures
+  fi
 
-  # references[annotation_grade_metrics]='Gene_seed'
+    if [ -s $output_folder/integrated_rank_measures ] ; then
+    echo -e "integration_Embedding\tintegration\tEmbedding\trank\tacc\ttpr\tfpr\tprec\trec" | \
+     cat - $output_folder/integrated_rank_measures > $report_folder/ranking_report/integrated_rank_measures
+  fi
 
-  # for metric in non_integrated_rank_summary integrated_rank_summary non_integrated_rank_pos_cov integrated_rank_pos_cov non_integrated_rank_positive_stats integrated_rank_positive_stats ; do
-  #   if [ -s $output_folder/$metric ] ; then
-  #     echo "$output_folder/$metric"
-  #     create_metric_table $output_folder/$metric ${references[$metric]} $report_folder/ranking_report/parsed_${metric} 
-  #   fi
-  # done
+  if [ -s $output_folder/non_integrated_rank_cdf ] ; then
+     echo -e "annot_Embedding\tannot\tEmbedding\tcandidate\tscore\trank\tcummulative_frec\tabsolute_ranking\tgroup_seed"| \
+     cat - $output_folder/non_integrated_rank_cdf > $report_folder/ranking_report/non_integrated_rank_cdf
+  fi
 
-  # if [ -s $output_folder/non_integrated_rank_measures ] ; then
-  #    echo -e "annot_Embedding\tannot\tEmbedding\trank\tacc\ttpr\tfpr\tprec\trec" | \
-  #    cat - $output_folder/non_integrated_rank_measures > $report_folder/ranking_report/non_integrated_rank_measures
-  # fi
+  if [ -s $output_folder/integrated_rank_cdf ] ; then
+     echo -e "integration_Embedding\tintegration\tEmbedding\tcandidate\tscore\trank\tcummulative_frec\tabsolute_ranking\tgroup_seed"| \
+     cat - $output_folder/integrated_rank_cdf > $report_folder/ranking_report/integrated_rank_cdf
+  fi
 
-  #   if [ -s $output_folder/integrated_rank_measures ] ; then
-  #   echo -e "integration_Embedding\tintegration\tEmbedding\trank\tacc\ttpr\tfpr\tprec\trec" | \
-  #    cat - $output_folder/integrated_rank_measures > $report_folder/ranking_report/integrated_rank_measures
-  # fi
-
-  # if [ -s $output_folder/non_integrated_rank_cdf ] ; then
-  #    echo -e "annot_Embedding\tannot\tEmbedding\tcandidate\tscore\trank\tcummulative_frec\tabsolute_ranking\tgroup_seed"| \
-  #    cat - $output_folder/non_integrated_rank_cdf > $report_folder/ranking_report/non_integrated_rank_cdf
-  # fi
-
-  # if [ -s $output_folder/integrated_rank_cdf ] ; then
-  #    echo -e "integration_Embedding\tintegration\tEmbedding\tcandidate\tscore\trank\tcummulative_frec\tabsolute_ranking\tgroup_seed"| \
-  #    cat - $output_folder/integrated_rank_cdf > $report_folder/ranking_report/integrated_rank_cdf
-  # fi
-
-  # # Adding control pos
-  # echo -e "Disfuntional Gene\t Backup Gene" > $report_folder/ranking_report/control_pos
-  # desaggregate_column_data -x 2 -i control_pos >> $report_folder/ranking_report/control_pos
+  # Adding control pos
+  echo -e "Disfuntional Gene\t Backup Gene" > $report_folder/ranking_report/control_pos
+  desaggregate_column_data -x 2 -i control_pos >> $report_folder/ranking_report/control_pos
   
   if [ -z "$check" ] ; then
     echo "---------------------------------------"
@@ -261,4 +275,13 @@ elif [ "$exec_mode" == "check" ] ; then
       flow_logger -w -e $output_folder/$add_opt/$folder -r all
     fi
   done  
+
+elif [ "$exec_mode" == "recover" ]; then 
+  #STAGE 4 RECOVER EXECUTION
+  for folder in `ls $output_folder/$add_opt/` ; do 
+    if [ -d $output_folder/$add_opt/$folder ] ; then
+      echo "$folder"
+      flow_logger -w -e $output_folder/$add_opt/$folder --sleep 0.1 -l -p  
+    fi
+  done
 fi
