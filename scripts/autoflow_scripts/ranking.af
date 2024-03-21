@@ -2,8 +2,8 @@ rank_genes){
 	# Input: seed_gens + kernel.
 	# Output: rank genes for every gen.
 	source ~soft_bio_267/initializes/init_python
-	. ~soft_bio_267/initializes/init_ruby
 	. ~soft_bio_267/initializes/init_R
+	export PATH=/mnt/home/users/bio_267_uma/federogc/sys_bio_lab_scripts/:$PATH
 	echo -e "$param1_$kernel\t$param1\t$kernel" > tracker
 	ranking_path=`pwd`
 	## Defining seed genes
@@ -19,7 +19,6 @@ rank_genes){
 	add_tags2ranks.py -i ranked_genes_all_candidates -g 5 -c 0 -t tags -o tagged_ranks.txt
 	number_of_genes=`wc -l tagged_ranks.txt | cut -f1 -d " "`
 
-	
 	# Obtaining Metrics And statistical summary
     if [ $number_of_genes -ge 1 ] ; then 
     	# Obtaining measures for graphs
