@@ -18,11 +18,12 @@ report_folder=$output_folder/report
 # Custom variables.
 annotations=" disease phenotype molecular_function biological_process cellular_component"
 annotations+=" string_ppi_combined hippie_ppi"
-annotations+=" string_ppi_textmining string_ppi_database string_ppi_experimental string_ppi_coexpression string_ppi_cooccurence string_ppi_fusion string_ppi_neighborhood"
+#annotations+=" string_ppi_textmining string_ppi_database string_ppi_experimental string_ppi_coexpression string_ppi_cooccurence string_ppi_fusion string_ppi_neighborhood"
 annotations+=" DepMap_effect_pearson DepMap_effect_spearman DepMap_Kim"
 annotations+=" pathway gene_hgncGroup"
 #annotations="phenotype biological_process string_ppi_textmining string_ppi_coexpression gene_hgncGroup"
 #annotations="phenotype string_ppi"
+#annotations=" string_ppi_combined string_ppi_textmining string_ppi_database string_ppi_experimental string_ppi_coexpression string_ppi_cooccurence string_ppi_fusion string_ppi_neighborhood"
 kernels="rf el node2vec raw_sim"
 integration_types="mean integration_mean_by_presence median max"
 control_pos=$input_path'/control_pos'
@@ -51,18 +52,27 @@ elif [ "$exec_mode" == "control_type" ] ; then
 # OPTIONAL STAGE : SEE IF THE RELATION BACKUP-GENSEED IS SYMMETRIC
 ##################################################################
   . ~soft_bio_267/initializes/init_python
-  filter_feature=$3 # Paralogs, Not_Paralogs, ".*"
+  robustness=$2
+  filter_feature=$4 # Paralogs, Not_Paralogs, ".*"
+  direction=$3
+  # control_type robust right ".*"
+  #
 
-  echo "$filter_feature"
-
-  if [ $add_opt == "reverse" ] ; then 
-      awk '{OFS="\t"}{print $2,$1,$3}' $control_genes_folder/backupgens/backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data -i - -x 1 -a 2 > ./control_pos
-      awk '{OFS="\t"}{print $2,$1,$3}' $control_genes_folder/backupgens/non_backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data -i - -x 1 -a 2 > ./control_neg   
-  elif [ $add_opt == "right" ] ; then 
-      echo "$add_opt"
-      awk '{OFS="\t"}{print $1,$2,$3}' $control_genes_folder/backupgens/backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data -i - -x 1 -a 2 > ./control_pos
-      awk '{OFS="\t"}{print $1,$2,$3}' $control_genes_folder/backupgens/non_backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data -i - -x 1 -a 2 > ./control_neg
+  echo "$filter_feature" 
+  if [ $robustness == "robust" ] ; then
+    if [ $direction == "reverse" ] ; then 
+        awk '{OFS="\t"}{print $2,$1,$3}' $control_genes_folder/backupgens/backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data -i - -x 1 -a 2 > ./control_pos
+        awk '{OFS="\t"}{print $2,$1,$3}' $control_genes_folder/backupgens/non_backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data -i - -x 1 -a 2 > ./control_neg   
+    elif [ $direction == "right" ] ; then 
+        echo "$add_opt"
+        awk '{OFS="\t"}{print $1,$2,$3}' $control_genes_folder/backupgens/backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data -i - -x 1 -a 2 > ./control_pos
+        awk '{OFS="\t"}{print $1,$2,$3}' $control_genes_folder/backupgens/non_backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data -i - -x 1 -a 2 > ./control_neg
+    fi
+  elif [ $robustness == "non_robust" ] ; then
+    cp $control_genes_folder/synletDB/backup_gens ./control_pos
+    cp $control_genes_folder/synletDB/non_backup_gens ./control_neg
   fi
+
 
 
 elif [ "$exec_mode" == "ranking" ] ; then
@@ -96,7 +106,7 @@ elif [ "$exec_mode" == "ranking" ] ; then
         \\$method=$method,
         \\$geneseeds=$input_path/geneseeds
         " | tr -d [:space:]`
-        AutoFlow -w $autoflow_scripts/ranking.af -V $autoflow_vars -o $output_folder/rankings/ranking_${kernel}_${annotation} -n cal -m 60gb -t 0-00:10:00 $3
+        AutoFlow -w $autoflow_scripts/ranking.af -V $autoflow_vars -o $output_folder/rankings/ranking_${kernel}_${annotation} -n cal -m 60gb -t 0-01:59:00 $3
       fi
       sleep 1
 
@@ -136,7 +146,7 @@ elif [ "$exec_mode" == "integrated_ranking" ] ; then
         \\$geneseeds=$input_path/geneseeds
         " | tr -d [:space:]`
         sleep 1
-        AutoFlow -w $autoflow_scripts/ranking.af -V $autoflow_vars -o $output_folder/integrated_rankings/ranking_${kernel}_${integration_type}  -n cal -m 60gb -t 0-00:05:00 $3
+        AutoFlow -w $autoflow_scripts/ranking.af -V $autoflow_vars -o $output_folder/integrated_rankings/ranking_${kernel}_${integration_type}  -n cal -m 60gb -t 0-01:59:00 $3
       fi
 
     done
@@ -148,10 +158,11 @@ elif [ "$exec_mode" == "integrated_ranking" ] ; then
 
 elif [ "$exec_mode" == "report" ] ; then 
   source ~soft_bio_267/initializes/init_python
-  source ~soft_bio_267/initializes/init_R
   html_name=$2
   check=$3
   interested_layers="disease biological_process phenotype string_ppi_textmining string_ppi_coexpression pathway gene_hgncGroup string_ppi_combined"
+  interested_layers="phenotype string_ppi_textmining string_ppi_coexpression string_ppi_database string_ppi_experimental pathway"
+  echo "eyyyyyyy mamaaaaaaaaa"
 
   # #################################
   # Setting up the report section #
@@ -258,6 +269,7 @@ elif [ "$exec_mode" == "report" ] ; then
   fi
  ###################
   # Obtaining HTMLS #
+  source ~/dev_py/venv/bin/activate
   report_html -t ./report/templates/ranking_report.py -c ./report/templates/css --css_cdn https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css -d `ls $report_folder/ranking_report/* | tr -s [:space:] "," | sed 's/,*$//g'` -o "report_algQuality$html_name"
 
   if [ -z "$check" ] ; then

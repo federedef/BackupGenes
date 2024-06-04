@@ -7,6 +7,35 @@
 
         warnings.simplefilter(action='ignore', category=FutureWarning)
 
+        parse_name = {"string_ppi_combined": "STRING combined", 
+                "string_ppi_textmining":"STRING textmining",
+                "string_ppi_coexpression": "STRING coexpression",
+                "string_ppi_neighborhood": "STRING neighborhood",
+                "string_ppi_experimental": "STRING experiments",
+                "string_ppi_cooccurence": "STRING cooccurrence",
+                "phenotype": "HPO",
+                "disease":"Disease",
+                "pathway": "Pathway",
+                "DepMap_effect_pearson": "DepMap Pearson",
+                "string_ppi_database":"STRING databases",
+                "DepMap_effect_spearman":"DepMap Spearman",
+                "hippie_ppi": "Hippie",
+                "DepMap_Kim":"DepMap Kim",
+                "string_ppi_fusion":"STRING fusion",
+                "gene_hgncGroup": "HGNC group",
+                "integration_mean_by_presence": "IMP",
+                "mean": "Mean",
+                "max": "Max",
+                "median": "Median",
+                "el": "EL",
+                "raw_sim": "raw",
+                "node2vec": "node2vec",
+                "rf": "RF",
+                "auc_down_ci_0.95": "AUROC-down",
+                "auc_up_ci_0.95": "AUROC-up",
+                "auc": "AUROC",
+                }
+
         # Text
         #######
 
@@ -46,7 +75,10 @@
                         parsed_table.append(row)
                         for j,data in enumerate(row):
                                 if type(data) == str and not data.startswith("HGNC:"):
-                                        parsed_table[i][j] = parsed_string(data, blacklist)
+                                        if parse_name.get(data):
+                                                parsed_table[i][j] = parse_name[data]
+                                        else:
+                                                parsed_table[i][j] = parsed_string(data, blacklist)
                                 else:
                                         continue
                 return parsed_table
@@ -60,13 +92,16 @@
                 if not include_header:
                         tab_header = plotter.hash_vars[name].pop(0)
                         plotter.hash_vars[name] = parse_data(plotter.hash_vars[name])
+                        if name == "parsed_integrated_rank_summary": print(plotter.hash_vars[name])
                         plotter.hash_vars[name].insert(0, tab_header)
                 else:
                         plotter.hash_vars[name] = parse_data(plotter.hash_vars[name])
 
         for table in plotter.hash_vars.keys():
-                parse_table(table)
-
+                if table == "parsed_non_integrated_rank_summary" or table == "parsed_integrated_rank_summary":
+                        parse_table(table, include_header=True)
+                else:
+                        parse_table(table)
         if plotter.hash_vars.get('parsed_non_integrated_rank_summary') is not None:
                 order_columns('parsed_non_integrated_rank_summary',0)
 
@@ -205,7 +240,12 @@ ${plotter.create_title(txt, id='backup_cov', hlevel=2, indexable=True, clickable
                                 "smpLabelScaleFontFactor": 1,
                                 "axisTickScaleFontFactor": 0.7,
                                 "smpLabelRotate": 45,
-                                "segregateSamplesBy": "Net"
+                                "segregateSamplesBy": "Net",
+                                "fontScaleFontFactor": 1.5,
+                                "axisTitleScaleFontFactor": 1.5,
+                                "axisTickScaleFontFactor": 1.5,
+                                "legendTextScaleFontFactor": 1.2,
+                                "legendTitleScaleFontFactor": 1.4
                                 })}
         % endif
         </div>
@@ -225,7 +265,12 @@ ${plotter.create_title(txt, id='backup_cov', hlevel=2, indexable=True, clickable
                                         "smpLabelScaleFontFactor": 1,
                                         "axisTickScaleFontFactor": 0.7,
                                         "smpLabelRotate": 45,
-                                        "segregateSamplesBy": "Integration"
+                                        "segregateSamplesBy": "Integration",
+                                        "fontScaleFontFactor": 1.5,
+                                        "axisTitleScaleFontFactor": 1.5,
+                                        "axisTickScaleFontFactor": 1.5,
+                                        "legendTextScaleFontFactor": 1.2,
+                                        "legendTitleScaleFontFactor": 1.4
                                         })}
                 % endif
         </div>
@@ -289,7 +334,12 @@ ${plotter.create_title(txt, id='tops', hlevel=3, indexable=True, clickable=False
           'segregateSamplesBy': "annot",
           "titleFontStyle": "italic",
          'setMaxX': 87,
-         "smpLabelRotate": 45
+         "smpLabelRotate": 45,
+         "fontScaleFontFactor": 1.5,
+        "axisTitleScaleFontFactor": 1.5,
+        "axisTickScaleFontFactor": 1.5,
+        "legendTextScaleFontFactor": 1.2,
+        "legendTitleScaleFontFactor": 1.4
         })) %>
 <% text.append(plotter.barplot(id="integrated_tops", header=True, fields=[2,4,5,6,7], var_attr=[1,2], 
         title= "(B) Integrated eGSM",
@@ -302,6 +352,11 @@ ${plotter.create_title(txt, id='tops', hlevel=3, indexable=True, clickable=False
          "smpLabelRotate": 45,
          "smpLabelScaleFontFactor": 0.3,
          'setMaxX': 87,
+         "fontScaleFontFactor": 1.5,
+        "axisTitleScaleFontFactor": 1.5,
+        "axisTickScaleFontFactor": 1.5,
+        "legendTextScaleFontFactor": 1.2,
+        "legendTitleScaleFontFactor": 1.4
         })) %>
 <% text.append(make_title("figure", "agg_tops", f"""Top 5,10,20,100 on different individual (A) and integrated (B) eGSM."""))%>
 ${collapsable_data("Tops absolute values", None, "tops_absolute", "\n".join(text))}
@@ -327,7 +382,12 @@ ${collapsable_data("Tops absolute values", None, "tops_absolute", "\n".join(text
                   'segregateSamplesBy': "annot",
                   "titleFontStyle": "italic",
                  'setMaxX': 100,
-                 "smpLabelRotate": 45
+                 "smpLabelRotate": 45,
+                 "fontScaleFontFactor": 1.5,
+"axisTitleScaleFontFactor": 1.5,
+"axisTickScaleFontFactor": 1.5,
+"legendTextScaleFontFactor": 1.2,
+"legendTitleScaleFontFactor": 1.4
                 })}
         ${plotter.barplot(id="integrated_tops_relative", header=True, fields=[2,4,5,6,7], var_attr=[1,2], 
                 title= "(B) Integrated eGSM",
@@ -339,6 +399,11 @@ ${collapsable_data("Tops absolute values", None, "tops_absolute", "\n".join(text
                   "titleScaleFontFactor": 0.7,
                  "smpLabelRotate": 45,
                  'setMaxX': 100,
+                 "fontScaleFontFactor": 1.5,
+"axisTitleScaleFontFactor": 1.5,
+"axisTickScaleFontFactor": 1.5,
+"legendTextScaleFontFactor": 1.2,
+"legendTitleScaleFontFactor": 1.4
                 })}
 </div>
 ${make_title("figure", "agg_tops", f"""Top 5,10,20,100 on different individual (A) and integrated (B) eGSM.""")}
@@ -390,7 +455,6 @@ ${make_title("figure", "roc_curve", f"""ROC in each individual (A) or integrated
 
 <%txt=[]%>
 % if plotter.hash_vars.get("parsed_non_integrated_rank_summary") is not None: 
-        <% parse_table('parsed_non_integrated_rank_summary', blacklist=["sim"], include_header=True) %>
         <% txt.append(plotter.line(id= "parsed_non_integrated_rank_summary", fields= [1, 7, 13, 8], header= True, row_names= True, var_attr=[0,2],
                 responsive= False,
                 height= '400px', width= '400px', x_label= 'AUROC',
@@ -407,7 +471,6 @@ ${make_title("figure", "roc_curve", f"""ROC in each individual (A) or integrated
                         })) %>
 % endif
 % if plotter.hash_vars.get('parsed_integrated_rank_summary') is not None: 
-        <% parse_table('parsed_integrated_rank_summary', blacklist=["sim"], include_header=True) %>
         <% txt.append(plotter.line(id= "parsed_integrated_rank_summary", fields=  [2, 7, 13, 8], header= True, row_names= True, var_attr = [0,1],
                 responsive= False,
                 height= '400px', width= '400px', x_label= 'AUROC',
