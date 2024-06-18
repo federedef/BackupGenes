@@ -18,7 +18,7 @@ report_folder=$output_folder/report
 # Custom variables.
 annotations=" disease phenotype molecular_function biological_process cellular_component"
 annotations+=" string_ppi_combined hippie_ppi"
-#annotations+=" string_ppi_textmining string_ppi_database string_ppi_experimental string_ppi_coexpression string_ppi_cooccurence string_ppi_fusion string_ppi_neighborhood"
+annotations+=" string_ppi_textmining string_ppi_database string_ppi_experimental string_ppi_coexpression string_ppi_cooccurence string_ppi_fusion string_ppi_neighborhood"
 annotations+=" DepMap_effect_pearson DepMap_effect_spearman DepMap_Kim"
 annotations+=" pathway gene_hgncGroup"
 #annotations="phenotype biological_process string_ppi_textmining string_ppi_coexpression gene_hgncGroup"
@@ -162,6 +162,7 @@ elif [ "$exec_mode" == "report" ] ; then
   check=$3
   interested_layers="disease biological_process phenotype string_ppi_textmining string_ppi_coexpression pathway gene_hgncGroup string_ppi_combined"
   interested_layers="phenotype string_ppi_textmining string_ppi_coexpression string_ppi_database string_ppi_experimental pathway"
+  interested_layers=$annotations
   echo "eyyyyyyy mamaaaaaaaaa"
 
   # #################################
@@ -269,7 +270,6 @@ elif [ "$exec_mode" == "report" ] ; then
   fi
  ###################
   # Obtaining HTMLS #
-  source ~/dev_py/venv/bin/activate
   report_html -t ./report/templates/ranking_report.py -c ./report/templates/css --css_cdn https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css -d `ls $report_folder/ranking_report/* | tr -s [:space:] "," | sed 's/,*$//g'` -o "report_algQuality$html_name"
 
   if [ -z "$check" ] ; then

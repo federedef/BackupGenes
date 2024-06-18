@@ -3,9 +3,10 @@
         import warnings
         import pandas as pd
         import re
-
-
+        import py_exp_calc.exp_calc as pxc
         warnings.simplefilter(action='ignore', category=FutureWarning)
+
+        number_of_positives = len(plotter.hash_vars["control_pos"])-1
 
         parse_name = {"string_ppi_combined": "STRING combined", 
                 "string_ppi_textmining":"STRING textmining",
@@ -28,7 +29,7 @@
                 "max": "Max",
                 "median": "Median",
                 "el": "EL",
-                "raw_sim": "raw",
+                "raw_sim": "GSM",
                 "node2vec": "node2vec",
                 "rf": "RF",
                 "auc_down_ci_0.95": "AUROC-down",
@@ -38,6 +39,18 @@
 
         # Text
         #######
+
+        def parse_heatmap_from_flat(data,nrow,ncol,nvalue):
+                pairs = {}
+                for row in data:
+                        if not pairs.get(row[nrow]):
+                                pairs[row[nrow]] = {}
+                        pairs[row[nrow]][row[ncol]] = row[nvalue]
+                mat, row, col = pxc.to_wmatrix_rectangular(pairs)
+                table = [["-",*col]]
+                for idx,elem in enumerate(row):
+                        table.append([elem, *mat[idx,:].tolist()])
+                return table
 
         def italic(txt):
                 return f"<i>{txt}</i>"
@@ -97,29 +110,6 @@
                 else:
                         plotter.hash_vars[name] = parse_data(plotter.hash_vars[name])
 
-        for table in plotter.hash_vars.keys():
-                if table == "parsed_non_integrated_rank_summary" or table == "parsed_integrated_rank_summary":
-                        parse_table(table, include_header=True)
-                else:
-                        parse_table(table)
-        if plotter.hash_vars.get('parsed_non_integrated_rank_summary') is not None:
-                order_columns('parsed_non_integrated_rank_summary',0)
-
-        if plotter.hash_vars.get('parsed_integrated_rank_summary') is not None:
-                order_columns('parsed_integrated_rank_summary',0)
-
-        if plotter.hash_vars.get('parsed_non_integrated_rank_pos_cov') is not None:
-                order_columns('parsed_non_integrated_rank_pos_cov',0)
-
-        if plotter.hash_vars.get('parsed_integrated_rank_pos_cov') is not None:
-                order_columns('parsed_integrated_rank_pos_cov',0)
-
-        if plotter.hash_vars.get('parsed_annotation_grade_metrics') is not None:
-                order_columns('parsed_annotation_grade_metrics',0)
-
-        img_path="/mnt/scratch/users/bio_267_uma/federogc/executions/BackupGenes/report/img/"
-
-        
         def plot_with_facet(data, plotter_list, plot_type="", x='fpr', y='tpr', col=None, hue=None, col_wrap=4, suptitle=None, top=0.7, labels = None, x_label=None, y_label=None):
                 if plot_type == "scatterplot":
                         g = plotter_list["sns"].FacetGrid(data, col_wrap=col_wrap, col=col, hue=hue, aspect=1).map(plotter_list["sns"].scatterplot, x, y)
@@ -145,7 +135,6 @@
                         df_top = df.groupby(groupby)[value].apply(lambda x: sum(pd.to_numeric(x)<=top)).reset_index()
                         df_top.rename(columns={value: f"Top {top}"}, inplace=True)
                         df_final = pd.concat([df_final, df_top[[f"Top {top}"]]], axis=1)
-                print(df_final.columns)
                 #col_names = plotter.hash_vars[var_name][0]
                 #col_names.append("size")
                 return [df_final.columns.tolist()] + df_final.values.tolist()
@@ -160,12 +149,36 @@
                         mod_file.append(mod_row)
                 return mod_file
 
-        plotter.hash_vars["non_integrated_tops"] = get_medianrank_size("non_integrated_rank_cdf", tops=[5,10,20,100])
-        plotter.hash_vars["integrated_tops"] = get_medianrank_size("integrated_rank_cdf", ["integration_Embedding","integration","Embedding"], tops = [5,10,20,100])
+        for table in plotter.hash_vars.keys():
+                if table == "parsed_non_integrated_rank_summary" or table == "parsed_integrated_rank_summary":
+                        parse_table(table, include_header=True)
+                else:
+                        parse_table(table)
+        if plotter.hash_vars.get('parsed_non_integrated_rank_summary') is not None:
+                order_columns('parsed_non_integrated_rank_summary',0)
 
+        if plotter.hash_vars.get('parsed_integrated_rank_summary') is not None:
+                order_columns('parsed_integrated_rank_summary',0)
+
+        if plotter.hash_vars.get('parsed_non_integrated_rank_pos_cov') is not None:
+                order_columns('parsed_non_integrated_rank_pos_cov',0)
+                plotter.hash_vars["parsed_non_integrated_rank_pos_cov"] = modify_by_cols("parsed_non_integrated_rank_pos_cov", [3], lambda x: float(x)/number_of_positives * 100)
+                plotter.hash_vars['parsed_non_integrated_rank_pos_cov'] = parse_heatmap_from_flat(plotter.hash_vars['parsed_non_integrated_rank_pos_cov'][1:],1,2,3)
+
+        if plotter.hash_vars.get('parsed_integrated_rank_pos_cov') is not None:
+                order_columns('parsed_integrated_rank_pos_cov',0)
+                plotter.hash_vars["parsed_integrated_rank_pos_cov"] = modify_by_cols("parsed_integrated_rank_pos_cov", [3], lambda x: float(x)/number_of_positives * 100)
+                plotter.hash_vars['parsed_integrated_rank_pos_cov'] = parse_heatmap_from_flat(plotter.hash_vars['parsed_integrated_rank_pos_cov'][1:],1,2,3)
+
+        if plotter.hash_vars.get('parsed_annotation_grade_metrics') is not None:
+                order_columns('parsed_annotation_grade_metrics',0)
+
+        if plotter.hash_vars.get("non_integrated_rank_cdf"):
+                plotter.hash_vars["non_integrated_tops"] = get_medianrank_size("non_integrated_rank_cdf", tops=[5,10,20,100])
+        
+        if plotter.hash_vars.get("integrated_rank_cdf"):
+                plotter.hash_vars["integrated_tops"] = get_medianrank_size("integrated_rank_cdf", ["integration_Embedding","integration","Embedding"], tops = [5,10,20,100])
 %>
-
-<% number_of_positives =  len(plotter.hash_vars["control_pos"])-1 %>
 
 <% plotter.set_header() %>
 
@@ -223,55 +236,17 @@ ${plotter.create_title(txt, id='backup_cov', hlevel=2, indexable=True, clickable
 <div style="overflow: hidden; display: flex; flex-direction: row; justify-content: center;">
         <div style="margin-right: 10px;">
                 % if plotter.hash_vars.get('parsed_non_integrated_rank_pos_cov') is not None:
-                        <% plotter.hash_vars["parsed_non_integrated_rank_pos_cov"] = modify_by_cols("parsed_non_integrated_rank_pos_cov", [3], lambda x: float(x)/number_of_positives * 100) %>
-                        ${plotter.barplot(id='parsed_non_integrated_rank_pos_cov', responsive= False, header=True,
-                         fields = [2,3],
-                         x_label = 'Backup Coverage (%)',
-                         height = '400px', width= '400px',
-                         var_attr = [1,2],
-                         title = "(A) Individual eGSM",
-                         config = {
-                                'showLegend' : True,
-                                'graphOrientation' : 'vertical',
-                                'colorBy' : 'Embedding',
-                                'setMinX': 0,
-                                "titleFontStyle": "italic",
-                                "titleScaleFontFactor": 0.7,
-                                "smpLabelScaleFontFactor": 1,
-                                "axisTickScaleFontFactor": 0.7,
-                                "smpLabelRotate": 45,
-                                "segregateSamplesBy": "Net",
-                                "fontScaleFontFactor": 1.5,
-                                "axisTitleScaleFontFactor": 1.5,
-                                "axisTickScaleFontFactor": 1.5,
-                                "legendTextScaleFontFactor": 1.2,
-                                "legendTitleScaleFontFactor": 1.4
-                                })}
-        % endif
+                        ${ plotter.heatmap(id = 'parsed_non_integrated_rank_pos_cov', title="",header = True, row_names = True, 
+                                config= {"setMinX":0,
+                                "setMaxX":100, 
+                                "xAxisTitle": "Coverage", 
+                                "samplesClustered":True,
+                                "showSmpDendrogram":False}) }
+                % endif
         </div>
         <div style="margin-left: 10px;"> 
                 % if plotter.hash_vars.get('parsed_integrated_rank_pos_cov') is not None: 
-                        <% plotter.hash_vars["parsed_integrated_rank_pos_cov"] = modify_by_cols("parsed_integrated_rank_pos_cov", [3], lambda x: float(x)/number_of_positives * 100) %>
-                        ${plotter.barplot(id= "parsed_integrated_rank_pos_cov", fields= [2,3] , header= True, responsive= False,
-                                height= '400px', width= '400px', x_label= 'Backup Covarage (%)' , var_attr= [1,2],
-                                title = "(B) Integrated eGSM",
-                                config = {
-                                        'showLegend' : True,
-                                        'graphOrientation' : 'vertical',
-                                        'colorBy' : 'Embedding',
-                                        'setMinX': 0,
-                                        "titleFontStyle": "italic",
-                                        "titleScaleFontFactor": 0.7,
-                                        "smpLabelScaleFontFactor": 1,
-                                        "axisTickScaleFontFactor": 0.7,
-                                        "smpLabelRotate": 45,
-                                        "segregateSamplesBy": "Integration",
-                                        "fontScaleFontFactor": 1.5,
-                                        "axisTitleScaleFontFactor": 1.5,
-                                        "axisTickScaleFontFactor": 1.5,
-                                        "legendTextScaleFontFactor": 1.2,
-                                        "legendTitleScaleFontFactor": 1.4
-                                        })}
+                        ${ plotter.heatmap(id = 'parsed_integrated_rank_pos_cov', header = True, title="", row_names = True, config= {"setMinX":0,"setMaxX":100, "xAxisTitle": "Coverage", "samplesClustered":True,"showSmpDendrogram":False}) }
                 % endif
         </div>
 </div>
@@ -288,7 +263,7 @@ ${plotter.create_title(txt, id='summ_rank_dis', hlevel=3, indexable=True, clicka
 <div style="overflow: hidden; display: flex; flex-direction: row; justify-content: center;">
         <div style="margin-right: 10px;">
                         % if plotter.hash_vars.get('non_integrated_rank_cdf') is not None: 
-                                ${plotter.boxplot(id= 'non_integrated_rank_cdf', header= True, row_names= False, default= False, fields= [5],  var_attr= [0,1,2], group = "Embedding",
+                                ${plotter.boxplot(id= 'non_integrated_rank_cdf', header= True, row_names= False, default= False, fields= [5],  smp_attr= [0,1,2], group = "Embedding",
                                    title= "(A) Individual eGSM",
                                         x_label= "Normalized rank",
                                         config= {
@@ -298,13 +273,13 @@ ${plotter.create_title(txt, id='summ_rank_dis', hlevel=3, indexable=True, clicka
                                                 ["Embedding"],
                                                 "titleFontStyle": "italic",
                                                 "titleScaleFontFactor": 0.7,
-                                                "smpLabelRotate": 45,
+                                                "smpTextRotate": 45,
                                                 "segregateSamplesBy": "annot"})}
                         % endif
         </div>
         <div style="margin-left: 10px;">
                         % if plotter.hash_vars.get('integrated_rank_cdf') is not None: 
-                                ${plotter.boxplot(id= 'integrated_rank_cdf', header= True, row_names= False, default= False, fields = [5], var_attr= [0,1,2], group= "Embedding", 
+                                ${plotter.boxplot(id= 'integrated_rank_cdf', header= True, row_names= False, default= False, fields = [5], smp_attr= [0,1,2], group= "Embedding", 
                                         title= "(B) Integrated eGSM",
                                         xlabel= "Normalized rank",
                                         config= {
@@ -315,7 +290,7 @@ ${plotter.create_title(txt, id='summ_rank_dis', hlevel=3, indexable=True, clicka
                                                 ["Embedding"],
                                                 "titleFontStyle": "italic",
                                                 "titleScaleFontFactor": 0.7,
-                                                "smpLabelRotate": 45,
+                                                "smpTextRotate": 45,
                                                 "segregateSamplesBy": "integration"})}
                         % endif
         </div>
@@ -326,33 +301,33 @@ ${make_title("figure", "rank_boxplot", f"""Rank distributions in each individual
 <% txt="Tops" %>
 ${plotter.create_title(txt, id='tops', hlevel=3, indexable=True, clickable=False)}
 <%text=[]%>
-<% text.append(plotter.barplot(id="non_integrated_tops", header=True, fields=[2,4,5,6,7], var_attr=[1,2], 
+<% text.append(plotter.barplot(id="non_integrated_tops", header=True, fields=[2,4,5,6,7], smp_attr=[1,2], 
         title= "(A) Individual eGSM", 
         x_label="Number of top-ranked Backups",
         config={
-          'graphOrientation' : 'vertical',
-          'segregateSamplesBy': "annot",
-          "titleFontStyle": "italic",
-         'setMaxX': 87,
-         "smpLabelRotate": 45,
-         "fontScaleFontFactor": 1.5,
+        'graphOrientation' : 'vertical',
+        'segregateSamplesBy': "annot",
+        "titleFontStyle": "italic",
+        'setMaxX': 87,
+        "smpTextRotate": 45,
+        "fontScaleFontFactor": 1.5,
         "axisTitleScaleFontFactor": 1.5,
         "axisTickScaleFontFactor": 1.5,
         "legendTextScaleFontFactor": 1.2,
         "legendTitleScaleFontFactor": 1.4
         })) %>
-<% text.append(plotter.barplot(id="integrated_tops", header=True, fields=[2,4,5,6,7], var_attr=[1,2], 
+<% text.append(plotter.barplot(id="integrated_tops", header=True, fields=[2,4,5,6,7], smp_attr=[1,2], 
         title= "(B) Integrated eGSM",
         x_label="Number of top-ranked Backups", 
         config={
-          'graphOrientation' : 'vertical',
-          'segregateSamplesBy': "integration",
-          "titleFontStyle": "italic",
-          "titleScaleFontFactor": 0.7,
-         "smpLabelRotate": 45,
-         "smpLabelScaleFontFactor": 0.3,
-         'setMaxX': 87,
-         "fontScaleFontFactor": 1.5,
+        'graphOrientation' : 'vertical',
+        'segregateSamplesBy': "integration",
+        "titleFontStyle": "italic",
+        "titleScaleFontFactor": 0.7,
+        "smpTextRotate": 45,
+        "smpLabelScaleFontFactor": 0.3,
+        'setMaxX': 87,
+        "fontScaleFontFactor": 1.5,
         "axisTitleScaleFontFactor": 1.5,
         "axisTickScaleFontFactor": 1.5,
         "legendTextScaleFontFactor": 1.2,
@@ -374,36 +349,36 @@ ${collapsable_data("Tops absolute values", None, "tops_absolute", "\n".join(text
                 for col in [4,5,6,7]:
                         plotter.hash_vars["integrated_tops_relative"][idx+1][col] = row[col]/number_of_positives * 100
         %>
-        ${plotter.barplot(id="non_integrated_tops_relative", header=True, fields=[2,4,5,6,7], var_attr=[1,2], 
+        ${plotter.barplot(id="non_integrated_tops_relative", header=True, fields=[2,4,5,6,7], smp_attr=[1,2], 
                 title= "(A) Individual eGSM", 
                 x_label=f"% of top-ranked Backups",
                 config={
-                  'graphOrientation' : 'vertical',
-                  'segregateSamplesBy': "annot",
-                  "titleFontStyle": "italic",
-                 'setMaxX': 100,
-                 "smpLabelRotate": 45,
-                 "fontScaleFontFactor": 1.5,
-"axisTitleScaleFontFactor": 1.5,
-"axisTickScaleFontFactor": 1.5,
-"legendTextScaleFontFactor": 1.2,
-"legendTitleScaleFontFactor": 1.4
+                'graphOrientation' : 'vertical',
+                'segregateSamplesBy': "annot",
+                "titleFontStyle": "italic",
+                'setMaxX': 100,
+                "smpTextRotate": 45,
+                "fontScaleFontFactor": 1.5,
+                "axisTitleScaleFontFactor": 1.5,
+                "axisTickScaleFontFactor": 1.5,
+                "legendTextScaleFontFactor": 1.2,
+                "legendTitleScaleFontFactor": 1.4
                 })}
-        ${plotter.barplot(id="integrated_tops_relative", header=True, fields=[2,4,5,6,7], var_attr=[1,2], 
+        ${plotter.barplot(id="integrated_tops_relative", header=True, fields=[2,4,5,6,7], smp_attr=[1,2], 
                 title= "(B) Integrated eGSM",
                 x_label=f"% of top-ranked Backups", 
                 config={
-                  'graphOrientation' : 'vertical',
-                  'segregateSamplesBy': "integration",
-                  "titleFontStyle": "italic",
-                  "titleScaleFontFactor": 0.7,
-                 "smpLabelRotate": 45,
-                 'setMaxX': 100,
-                 "fontScaleFontFactor": 1.5,
-"axisTitleScaleFontFactor": 1.5,
-"axisTickScaleFontFactor": 1.5,
-"legendTextScaleFontFactor": 1.2,
-"legendTitleScaleFontFactor": 1.4
+                'graphOrientation' : 'vertical',
+                'segregateSamplesBy': "integration",
+                "titleFontStyle": "italic",
+                "titleScaleFontFactor": 0.7,
+                "smpTextRotate": 45,
+                'setMaxX': 100,
+                "fontScaleFontFactor": 1.5,
+                "axisTitleScaleFontFactor": 1.5,
+                "axisTickScaleFontFactor": 1.5,
+                "legendTextScaleFontFactor": 1.2,
+                "legendTitleScaleFontFactor": 1.4
                 })}
 </div>
 ${make_title("figure", "agg_tops", f"""Top 5,10,20,100 on different individual (A) and integrated (B) eGSM.""")}
@@ -416,14 +391,14 @@ ${plotter.create_title(txt, id='cdf_curves', hlevel=3, indexable=True, clickable
 <a href="https://academic.oup.com/bib/article/23/2/bbac019/6521702#330302198">Xiao Yuan et al. Evaluation of phenotype-driven gene prioritization methods for Mendelian diseases, Briefings in Bioinformatics, Volume 23, Issue 2, March 2022, bbac019 </a>
 <div style="overflow: hidden; text-align:center">
         % if plotter.hash_vars.get("non_integrated_rank_cdf") is not None: 
-                ${ plotter.static_plot_main( id="non_integrated_rank_cdf", header=True, row_names=False, var_attr=[0,1,2,3], fields =[4,5,6],
+                ${ plotter.static_plot_main( id="non_integrated_rank_cdf", header=True, row_names=False, smp_attr=[0,1,2,3], fields =[4,5,6],
                                 plotting_function= lambda data, plotter_list: plot_with_facet(plot_type="ecdf",data=data, 
                                         plotter_list=plotter_list, x="rank", col="annot", 
                                         hue="Embedding", col_wrap=3, 
                                         suptitle="A", x_label="Normalized Rank", y_label="TPR", top=0.9))}
         % endif
         % if plotter.hash_vars.get("integrated_rank_cdf") is not None: 
-                ${ plotter.static_plot_main( id="integrated_rank_cdf", header=True, row_names=False, var_attr=[0,1,2,3], fields =[4,5,6],
+                ${ plotter.static_plot_main( id="integrated_rank_cdf", header=True, row_names=False, smp_attr=[0,1,2,3], fields =[4,5,6],
                                 plotting_function= lambda data, plotter_list: plot_with_facet(plot_type="ecdf",data=data, plotter_list=plotter_list, x="rank", 
                                         col="integration", hue="Embedding", col_wrap=2, suptitle="B", x_label="Normalized Rank", y_label="TPR", top=0.8))}
         % endif
@@ -437,14 +412,15 @@ ${plotter.create_title(txt, id='roc_curves', hlevel=3, indexable=True, clickable
 
 <div style="overflow: hidden; text-align:center">
         % if plotter.hash_vars.get("non_integrated_rank_measures") is not None: 
-                 ${ plotter.static_plot_main( id="non_integrated_rank_measures", header=True, row_names=False, var_attr=[0,1,2,3], fields =[4,5,6],
+
+                 ${ plotter.static_plot_main( id="non_integrated_rank_measures", header=True, row_names=False, smp_attr=[0,1,2,3], fields =[4,5,6],
                                 plotting_function= lambda data, plotter_list: plot_with_facet(plot_type="lineplot", data=data,
                                         plotter_list=plotter_list, x='fpr', y='tpr', col='annot', 
                                         hue='Embedding', col_wrap=3, suptitle="A", 
                                         top=0.9, x_label="FPR", y_label="TPR"))}
         % endif
         % if plotter.hash_vars.get("integrated_rank_measures") is not None: 
-                 ${ plotter.static_plot_main( id="integrated_rank_measures", header=True, row_names=False, var_attr=[0,1,2,3], fields =[4,5,6], 
+                 ${ plotter.static_plot_main( id="integrated_rank_measures", header=True, row_names=False, smp_attr=[0,1,2,3], fields =[4,5,6], 
                                 plotting_function= lambda data, plotter_list: plot_with_facet(plot_type="lineplot",data=data, 
                                         plotter_list=plotter_list, x='fpr', y='tpr', col='integration', 
                                         hue='Embedding', col_wrap=2, suptitle="B", 
@@ -455,7 +431,7 @@ ${make_title("figure", "roc_curve", f"""ROC in each individual (A) or integrated
 
 <%txt=[]%>
 % if plotter.hash_vars.get("parsed_non_integrated_rank_summary") is not None: 
-        <% txt.append(plotter.line(id= "parsed_non_integrated_rank_summary", fields= [1, 7, 13, 8], header= True, row_names= True, var_attr=[0,2],
+        <% txt.append(plotter.line(id= "parsed_non_integrated_rank_summary", fields= [1, 7, 13, 8], header= True, row_names= True, smp_attr=[0,2],
                 responsive= False,
                 height= '400px', width= '400px', x_label= 'AUROC',
                 title= "(A) Individual eGSM",
@@ -466,12 +442,12 @@ ${make_title("figure", "roc_curve", f"""ROC in each individual (A) or integrated
                         "titleScaleFontFactor": 0.7,
                         'setMinX': 0,
                         'setMaxX': 1,
-                        "smpLabelRotate": 45,
+                        "smpTextRotate": 45,
                         "segregateSamplesBy": "Embedding"
                         })) %>
 % endif
 % if plotter.hash_vars.get('parsed_integrated_rank_summary') is not None: 
-        <% txt.append(plotter.line(id= "parsed_integrated_rank_summary", fields=  [2, 7, 13, 8], header= True, row_names= True, var_attr = [0,1],
+        <% txt.append(plotter.line(id= "parsed_integrated_rank_summary", fields=  [2, 7, 13, 8], header= True, row_names= True, smp_attr = [0,1],
                 responsive= False,
                 height= '400px', width= '400px', x_label= 'AUROC',
                 title= "(B) Integrated eGSM",
@@ -482,7 +458,7 @@ ${make_title("figure", "roc_curve", f"""ROC in each individual (A) or integrated
                         "titleScaleFontFactor": 0.7,
                         'setMinX': 0,
                         'setMaxX': 1,
-                        "smpLabelRotate": 45,
+                        "smpTextRotate": 45,
                         "segregateSamplesBy": "Integration"
                         })) %>
 % endif
