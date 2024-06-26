@@ -163,7 +163,6 @@ elif [ "$exec_mode" == "report" ] ; then
   interested_layers="disease biological_process phenotype string_ppi_textmining string_ppi_coexpression pathway gene_hgncGroup string_ppi_combined"
   interested_layers="phenotype string_ppi_textmining string_ppi_coexpression string_ppi_database string_ppi_experimental pathway"
   interested_layers=$annotations
-  echo "eyyyyyyy mamaaaaaaaaa"
 
   # #################################
   # Setting up the report section #
