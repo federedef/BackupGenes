@@ -35,8 +35,8 @@
                 "raw_sim": "GSM",
                 "node2vec": "node2vec",
                 "rf": "RF",
-                "auc_down_ci_0.95": "AUROC-down",
-                "auc_up_ci_0.95": "AUROC-up",
+                "auc_down_ci_0.95": "AUROC-0.025",
+                "auc_up_ci_0.95": "AUROC-0.975",
                 "auc": "AUROC",
                 } 
 
