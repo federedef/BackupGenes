@@ -43,8 +43,7 @@ if [ "$exec_mode" == "download_translators" ] ; then
 elif [ "$exec_mode" == "control_preparation" ] ; then 
 
   if [ "$2" == "bk" ] ; then
-   # $daemon_scripts/control_preparation.sh
-   echo "eyeye"
+    $daemon_scripts/control_preparation.sh
   elif [ "$2" == "targets" ] ; then
     . ~soft_bio_267/initializes/init_python
     open_target_query.py -i ./control_genes/open_targets/disease_annot
