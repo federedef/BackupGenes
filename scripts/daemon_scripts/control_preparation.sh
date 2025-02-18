@@ -10,7 +10,7 @@ source ~soft_bio_267/initializes/init_python
   # POSITIVE CONTROL #
   echo "POSITIVE CONTROL"
   # AdHoc added backups
-  cp $control_genes_folder/backupgens/data/AdHoc_Backups $control_genes_folder/backupgens/processed_data/AdHoc_Backups
+  cut -f 1,2 $control_genes_folder/backupgens/data/AdHoc_Backups > $control_genes_folder/backupgens/processed_data/AdHoc_Backups
   # Big Papi.
   grep -w 'All 6\|no *' $control_genes_folder/backupgens/data/Big_Papi | awk '{FS="\t";OFS="\t"}{if ( $6 < 0.05 ) print $1,$2}' | sort -k1 | uniq | grep -v -e '^$' > $control_genes_folder/backupgens/data/filtered_Big_Papi
   # Digenic Paralog.

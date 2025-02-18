@@ -21,13 +21,11 @@ annotations+=" string_ppi_combined hippie_ppi"
 annotations+=" string_ppi_textmining string_ppi_database string_ppi_experimental string_ppi_coexpression string_ppi_cooccurence string_ppi_fusion string_ppi_neighborhood"
 annotations+=" DepMap_effect_pearson DepMap_effect_spearman DepMap_Kim"
 annotations+=" pathway gene_hgncGroup"
-#annotations="phenotype biological_process string_ppi_textmining string_ppi_coexpression gene_hgncGroup"
-#annotations="phenotype string_ppi"
-#annotations=" string_ppi_combined string_ppi_textmining string_ppi_database string_ppi_experimental string_ppi_coexpression string_ppi_cooccurence string_ppi_fusion string_ppi_neighborhood"
 kernels="rf el node2vec raw_sim"
 integration_types="mean integration_mean_by_presence median max"
 control_pos=$input_path'/control_pos'
 control_neg=$input_path'/control_neg'
+seeds=$input_path'/seeds'
 
 if [ "$exec_mode" == "download_translators" ] ; then
  
@@ -38,13 +36,23 @@ if [ "$exec_mode" == "download_translators" ] ; then
 
   # Downloading HGNC_symbol
   wget http://ftp.ebi.ac.uk/pub/databases/genenames/hgnc/archive/monthly/tsv/hgnc_complete_set_2022-04-01.txt -O ./translators/HGNC_symbol
-  awk '{OFS="\t"}{print $2,$1}' ./translators/HGNC_symbol > ./translators/symbol_HGNC
-  awk '{FS="\t";OFS="\t"}{print $19,$1}' ./translators/HGNC_symbol > ./translators/entrez_HGNC
-  awk '{OFS="\t"}{print $2,$1}' ./translators/HGNC_symbol > ./translators/symbol_HGNC
+  awk 'BEGIN{OFS="\t"}{print $2,$1}' ./translators/HGNC_symbol > ./translators/symbol_HGNC
+  awk 'BEGIN{FS="\t";OFS="\t"}{print $19,$1}' ./translators/HGNC_symbol > ./translators/entrez_HGNC
+  awk 'BEGIN{OFS="\t"}{print $2,$1}' ./translators/HGNC_symbol > ./translators/symbol_HGNC
  
-elif [ "$exec_mode" == "control_preparation" ] ; then  #TODO (5/3/2024): Quitar el HGNC:1925 que es un backup respecto a sí mismo e investigar que ha pasado.
+elif [ "$exec_mode" == "control_preparation" ] ; then 
 
-  $daemon_scripts/control_preparation.sh
+  if [ "$2" == "bk" ] ; then
+   # $daemon_scripts/control_preparation.sh
+   echo "eyeye"
+  elif [ "$2" == "targets" ] ; then
+    . ~soft_bio_267/initializes/init_python
+    open_target_query.py -i ./control_genes/open_targets/disease_annot
+    desaggregate_column_data -i disease2target -x 2 -s "," \
+    | standard_name_replacer -i - -I ../GraphPrioritizer/translators/symbol_HGNC | aggregate_column_data -i - -x 1 -a 2 > tmp && rm disease2target
+    rm tmp
+    merge_tabular tmp ./control_genes/open_targets/disease_annot | grep -vw "-" | awk 'BEGIN{FS="\t";OFS="\t"}{print $1,$4,$2}' > ./control_genes/open_targets/seed2targets
+  fi
 
 elif [ "$exec_mode" == "control_type" ] ; then 
 
@@ -52,25 +60,31 @@ elif [ "$exec_mode" == "control_type" ] ; then
 # OPTIONAL STAGE : SEE IF THE RELATION BACKUP-GENSEED IS SYMMETRIC
 ##################################################################
   . ~soft_bio_267/initializes/init_python
-  robustness=$2
+  dataset=$2
   filter_feature=$4 # Paralogs, Not_Paralogs, ".*"
   direction=$3
   # control_type robust right ".*"
   #
 
   echo "$filter_feature" 
-  if [ $robustness == "robust" ] ; then
+  if [ $dataset == "robust" ] ; then
     if [ $direction == "reverse" ] ; then 
-        awk '{OFS="\t"}{print $2,$1,$3}' $control_genes_folder/backupgens/backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data -i - -x 1 -a 2 > ./control_pos
-        awk '{OFS="\t"}{print $2,$1,$3}' $control_genes_folder/backupgens/non_backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data -i - -x 1 -a 2 > ./control_neg   
+        awk 'BEGIN{OFS="\t"}{print $2,$1,$3}' $control_genes_folder/backupgens/backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data -i - -x 1 -a 2 > ./control_pos
+        awk 'BEGIN{OFS="\t"}{print $2,$1,$3}' $control_genes_folder/backupgens/non_backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data -i - -x 1 -a 2 > ./control_neg   
     elif [ $direction == "right" ] ; then 
         echo "$add_opt"
-        awk '{OFS="\t"}{print $1,$2,$3}' $control_genes_folder/backupgens/backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data -i - -x 1 -a 2 > ./control_pos
-        awk '{OFS="\t"}{print $1,$2,$3}' $control_genes_folder/backupgens/non_backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data -i - -x 1 -a 2 > ./control_neg
+        awk 'BEGIN{OFS="\t"}{print $1,$2,$3}' $control_genes_folder/backupgens/backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data -i - -x 1 -a 2 > ./control_pos
+        awk 'BEGIN{OFS="\t"}{print $1,$2,$3}' $control_genes_folder/backupgens/non_backup_gens | grep -w "$filter_feature" | cut -f 1,2 | aggregate_column_data -i - -x 1 -a 2 > ./control_neg
     fi
-  elif [ $robustness == "non_robust" ] ; then
+    awk 'BEGIN{FS=OFS="\t"}{print $1,$1}' ./control_pos > seeds
+  elif [ $dataset == "non_robust" ] ; then
     cp $control_genes_folder/synletDB/backup_gens ./control_pos
     cp $control_genes_folder/synletDB/non_backup_gens ./control_neg
+    awk 'BEGIN{FS=OFS="\t"}{print $1,$1}' ./control_pos > seeds
+  elif [ $dataset == "open_targets" ] ; then
+    cut -f 1,3 $control_genes_folder/open_targets/seed2targets > control_pos
+    cut -f 1,2 $control_genes_folder/open_targets/seed2targets > seeds
+    touch control_neg
   fi
 
 
@@ -82,7 +96,6 @@ elif [ "$exec_mode" == "ranking" ] ; then
     rm -r $output_folder/rankings 
   fi
   mkdir -p $output_folder/rankings
-  method=$2
   
   cat  $output_folder_GraphPrioritizer/similarity_kernels/*/*/ugot_path > $output_folder_GraphPrioritizer/similarity_kernels/ugot_path
   for annotation in $annotations ; do 
@@ -100,10 +113,10 @@ elif [ "$exec_mode" == "ranking" ] ; then
         \\$folder_kernel_path=$folder_kernel_path,
         \\$input_name='kernel_matrix_bin',
         \\$production_seedgens=$production_seedgens,
+        \\$seeds=$seeds,
         \\$control_pos=$control_pos,
         \\$control_neg=$control_neg,
         \\$output_name='non_integrated_rank',
-        \\$method=$method,
         \\$geneseeds=$input_path/geneseeds
         " | tr -d [:space:]`
         AutoFlow -w $autoflow_scripts/ranking.af -V $autoflow_vars -o $output_folder/rankings/ranking_${kernel}_${annotation} -n cal -m 60gb -t 0-01:59:00 $3
@@ -122,8 +135,6 @@ elif [ "$exec_mode" == "integrated_ranking" ] ; then
   mkdir -p $output_folder/integrated_rankings
   cat  $output_folder_GraphPrioritizer/integrations/*/*/ugot_path > $output_folder_GraphPrioritizer/integrations/ugot_path # What I got?
 
-  method=$2
-
   for integration_type in ${integration_types} ; do 
     for kernel in $kernels ; do 
 
@@ -139,10 +150,10 @@ elif [ "$exec_mode" == "integrated_ranking" ] ; then
         \\$folder_kernel_path=$folder_kernel_path,
         \\$input_name='general_matrix',
         \\$production_seedgens=$production_seedgens,
+        \\$seeds=$seeds,
         \\$control_pos=$control_pos,
         \\$control_neg=$control_neg,
         \\$output_name='integrated_rank',
-        \\$method=$method,
         \\$geneseeds=$input_path/geneseeds
         " | tr -d [:space:]`
         sleep 1
@@ -158,6 +169,7 @@ elif [ "$exec_mode" == "integrated_ranking" ] ; then
 
 elif [ "$exec_mode" == "report" ] ; then 
   source ~soft_bio_267/initializes/init_python
+  #source ~/dev_py/reporvenv/bin/activate
   html_name=$2
   check=$3
   interested_layers="disease biological_process phenotype string_ppi_textmining string_ppi_coexpression pathway gene_hgncGroup string_ppi_combined"

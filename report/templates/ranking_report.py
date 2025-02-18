@@ -294,15 +294,16 @@ ${plotter.create_title(txt, id='cdf_curves', hlevel=3, indexable=True, clickable
 <div style="overflow: hidden; text-align:center">
         % if plotter.hash_vars.get("non_integrated_rank_cdf") is not None: 
                 ${ plotter.static_plot_main( id="non_integrated_rank_cdf", header=True, row_names=False, smp_attr=[0,1,2,3], fields =[4,5,6],
-                                plotting_function= lambda data, plotter_list: ph.plot_with_facet(plot_type="ecdf",data=data, 
+                                width=600, height=600, matplot_width = 6, matplot_height = 6, dpi=1200,  plotting_function= lambda data, plotter_list: ph.plot_with_facet(plot_type="ecdf",data=data, 
                                         plotter_list=plotter_list, x="rank", col="annot", 
                                         hue="Embedding", col_wrap=3, 
-                                        suptitle="A", x_label="Normalized Rank", y_label="TPR", top=0.9))}
+                                        suptitle="", x_label="Normalized Rank", y_label="TPR", top=0.9))}
         % endif
         % if plotter.hash_vars.get("integrated_rank_cdf") is not None: 
                 ${ plotter.static_plot_main( id="integrated_rank_cdf", header=True, row_names=False, smp_attr=[0,1,2,3], fields =[4,5,6],
-                                plotting_function= lambda data, plotter_list: ph.plot_with_facet(plot_type="ecdf",data=data, plotter_list=plotter_list, x="rank", 
-                                        col="integration", hue="Embedding", col_wrap=2, suptitle="B", x_label="Normalized Rank", y_label="TPR", top=0.8))}
+                                width=600, height=600, matplot_width = 6, matplot_height = 6, dpi=1200, plotting_function= lambda data, plotter_list: ph.plot_with_facet(plot_type="ecdf",data=data, 
+                                        plotter_list=plotter_list, x="rank", 
+                                        col="integration", hue="Embedding", col_wrap=2, suptitle="", x_label="Normalized Rank", y_label="TPR", top=0.8))}
         % endif
 </div>
 ${ph.make_title(plotter,"figure", "cdf_curve", f"""CDF curves by each individual (A)
@@ -316,16 +317,16 @@ ${plotter.create_title(txt, id='roc_curves', hlevel=3, indexable=True, clickable
         % if plotter.hash_vars.get("non_integrated_rank_measures") is not None: 
 
                  ${ plotter.static_plot_main( id="non_integrated_rank_measures", header=True, row_names=False, smp_attr=[0,1,2,3], fields =[4,5,6],
-                                plotting_function= lambda data, plotter_list: ph.plot_with_facet(plot_type="lineplot", data=data,
+                                width=600, height=600, matplot_width = 6, matplot_height = 6, dpi=1200,plotting_function= lambda data, plotter_list: ph.plot_with_facet(plot_type="lineplot", data=data,
                                         plotter_list=plotter_list, x='fpr', y='tpr', col='annot', 
-                                        hue='Embedding', col_wrap=3, suptitle="A", 
+                                        hue='Embedding', col_wrap=3, suptitle="", 
                                         top=0.9, x_label="FPR", y_label="TPR"))}
         % endif
         % if plotter.hash_vars.get("integrated_rank_measures") is not None: 
                  ${ plotter.static_plot_main( id="integrated_rank_measures", header=True, row_names=False, smp_attr=[0,1,2,3], fields =[4,5,6], 
-                                plotting_function= lambda data, plotter_list: ph.plot_with_facet(plot_type="lineplot",data=data, 
+                                width=600, height=600, matplot_width = 6, matplot_height = 6, dpi=1200,plotting_function= lambda data, plotter_list: ph.plot_with_facet(plot_type="lineplot",data=data, 
                                         plotter_list=plotter_list, x='fpr', y='tpr', col='integration', 
-                                        hue='Embedding', col_wrap=2, suptitle="B", 
+                                        hue='Embedding', col_wrap=2, suptitle="", 
                                         top=0.8, labels = 'Embedding', x_label="FPR", y_label="TPR"))}
         % endif
 </div>
@@ -358,8 +359,12 @@ ${ph.make_title(plotter,"figure", "roc_curve", f"""ROC in each individual (A) or
                         'graphOrientation' : 'vertical',
                         "titleFontStyle": "italic",
                         "titleScaleFontFactor": 0.7,
-                        'setMinX': 0,
+                        'setMinX': 0.5,
                         'setMaxX': 1,
+                        'stripTextScaleFontFactor': 1.7,
+                        'xAxisTextScaleFontFactor': 1.7,
+                        'xAxisTitleScaleFontFactor': 1.8,
+                        'legendTextScaleFontFactor': 1.4,
                         "smpTextRotate": 45,
                         "segregateSamplesBy": "Integration"
                         })) %>
